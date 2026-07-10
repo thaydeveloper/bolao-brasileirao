@@ -31,8 +31,13 @@ export async function checkReminders(now = new Date()) {
 
   const [users, rounds] = await Promise.all([
     prisma.user.findMany({ select: { id: true } }),
+    // Só carrega rodadas que têm ALGUM jogo começando na janela de lembrete.
+    // Na maioria das visitas isso retorna vazio → dashboard rápido.
     prisma.round.findMany({
-      where: { canceled: false },
+      where: {
+        canceled: false,
+        matches: { some: { kickoff: { gt: now, lte: windowEnd } } },
+      },
       include: {
         matches: {
           orderBy: { kickoff: "asc" },

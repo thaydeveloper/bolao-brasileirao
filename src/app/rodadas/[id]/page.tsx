@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { computeRoundRanking, getRoundWinners } from "@/lib/ranking";
+import { computeRoundRanking, winnersFromRanking } from "@/lib/ranking";
 import { dataCompletaBR, isMatchLocked, roundStatus, STATUS_LABEL } from "@/lib/rounds";
 import PredictionForm from "@/components/PredictionForm";
 import CopyButton from "@/components/CopyButton";
 import Avatar from "@/components/Avatar";
 import TeamCrest from "@/components/TeamCrest";
+import PlayerLink from "@/components/PlayerLink";
 
 export const dynamic = "force-dynamic";
 
@@ -43,10 +44,8 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
   if (!round) notFound();
 
   const status = roundStatus(round);
-  const [ranking, winners] = await Promise.all([
-    computeRoundRanking(round.id),
-    getRoundWinners(round),
-  ]);
+  const ranking = await computeRoundRanking(round.id);
+  const winners = winnersFromRanking(ranking, round);
 
   return (
     <main>
@@ -196,10 +195,7 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
                     <span className={`pos ${i < 3 ? `pos-${i + 1}` : ""}`}>{i + 1}</span>
                   </td>
                   <td>
-                    <span className="player-cell">
-                      <Avatar name={entry.user.name} photoUrl={entry.user.photoUrl} />
-                      {entry.user.name}
-                    </span>
+                    <PlayerLink id={entry.user.id} name={entry.user.name} photoUrl={entry.user.photoUrl} />
                   </td>
                   <td className="num hide-sm">{entry.predictedCount}</td>
                   <td className="num">{entry.exactCount}</td>

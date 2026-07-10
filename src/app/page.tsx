@@ -12,7 +12,7 @@ import {
 } from "@/lib/rounds";
 import Countdown from "@/components/Countdown";
 import CopyButton from "@/components/CopyButton";
-import Avatar from "@/components/Avatar";
+import PlayerLink from "@/components/PlayerLink";
 
 export const dynamic = "force-dynamic";
 
@@ -156,10 +156,7 @@ export default async function DashboardPage() {
                     <span className={`pos ${i < 3 ? `pos-${i + 1}` : ""}`}>{i + 1}</span>
                   </td>
                   <td>
-                    <span className="player-cell">
-                      <Avatar name={entry.user.name} photoUrl={entry.user.photoUrl} />
-                      {entry.user.name}
-                    </span>
+                    <PlayerLink id={entry.user.id} name={entry.user.name} photoUrl={entry.user.photoUrl} />
                   </td>
                   <td className="num points-badge">{entry.points} pts</td>
                 </tr>
@@ -186,10 +183,7 @@ export default async function DashboardPage() {
                       <span className={`pos ${i < 3 ? `pos-${i + 1}` : ""}`}>{i + 1}</span>
                     </td>
                     <td>
-                      <span className="player-cell">
-                        <Avatar name={entry.user.name} photoUrl={entry.user.photoUrl} />
-                        {entry.user.name}
-                      </span>
+                      <PlayerLink id={entry.user.id} name={entry.user.name} photoUrl={entry.user.photoUrl} />
                     </td>
                     <td className="num points-badge">{entry.points} pts</td>
                   </tr>

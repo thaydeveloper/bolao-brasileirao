@@ -63,13 +63,59 @@ export async function computeRoundRanking(roundId: number): Promise<RoundRanking
     .sort((a, b) => b.points - a.points || b.exactCount - a.exactCount || a.user.name.localeCompare(b.user.name));
 }
 
+/** Vencedor(es) a partir de um ranking já calculado (evita recalcular). */
+export function winnersFromRanking(
+  ranking: RoundRankingEntry[],
+  round: RoundWithMatches
+): RoundRankingEntry[] {
+  if (roundStatus(round) !== "encerrada" || ranking.length === 0) return [];
+  const top = ranking[0].points;
+  if (top <= 0) return []; // ninguém pontuou → sem vencedor
+  return ranking.filter((e) => e.points === top);
+}
+
 /** Vencedor(es) da rodada — empatados dividem o prêmio. Só vale para rodadas encerradas. */
 export async function getRoundWinners(round: RoundWithMatches): Promise<RoundRankingEntry[]> {
   if (roundStatus(round) !== "encerrada") return [];
   const ranking = await computeRoundRanking(round.id);
-  if (ranking.length === 0) return [];
-  const top = ranking[0].points;
-  return ranking.filter((e) => e.points === top);
+  return winnersFromRanking(ranking, round);
+}
+
+/**
+ * Vencedores de TODAS as rodadas em poucas consultas (evita N+1 na lista de rodadas).
+ * Retorna um mapa roundId → { nomes, pontos } apenas para rodadas com pontuação > 0.
+ * A checagem de "rodada encerrada" fica a cargo de quem consome (usa o status da rodada).
+ */
+export async function getRoundWinnersMap(): Promise<Map<number, { names: string[]; points: number }>> {
+  const preds = await prisma.prediction.findMany({
+    where: { match: { finished: true } },
+    select: { userId: true, points: true, match: { select: { roundId: true } } },
+  });
+  const result = new Map<number, { names: string[]; points: number }>();
+  if (preds.length === 0) return result;
+
+  const byRound = new Map<number, Map<number, number>>();
+  for (const p of preds) {
+    const rid = p.match.roundId;
+    let m = byRound.get(rid);
+    if (!m) {
+      m = new Map();
+      byRound.set(rid, m);
+    }
+    m.set(p.userId, (m.get(p.userId) ?? 0) + (p.points ?? 0));
+  }
+
+  const userIds = [...new Set(preds.map((p) => p.userId))];
+  const users = await prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } });
+  const nameById = new Map(users.map((u) => [u.id, u.name]));
+
+  for (const [rid, m] of byRound) {
+    const top = Math.max(...m.values());
+    if (top <= 0) continue;
+    const names = [...m.entries()].filter(([, pts]) => pts === top).map(([uid]) => nameById.get(uid) ?? "?");
+    result.set(rid, { names, points: top });
+  }
+  return result;
 }
 
 /** Ranking geral do campeonato, considerando todas as rodadas não canceladas. */
@@ -136,6 +182,54 @@ export async function computeGeneralRanking(): Promise<GeneralRankingEntry[]> {
         b.exactCount - a.exactCount ||
         a.user.name.localeCompare(b.user.name)
     );
+}
+
+export type PlayerProfile = {
+  user: RankingUser;
+  position: number;
+  totalPlayers: number;
+  points: number;
+  roundWins: number;
+  exactCount: number;
+  efficiency: number;
+  rounds: { roundId: number; number: number; points: number; predicted: number; exact: number }[];
+};
+
+/** Perfil público de um participante: posição geral, estatísticas e desempenho por rodada. */
+export async function getPlayerProfile(userId: number): Promise<PlayerProfile | null> {
+  const general = await computeGeneralRanking();
+  const idx = general.findIndex((e) => e.user.id === userId);
+  if (idx === -1) return null;
+  const entry = general[idx];
+
+  const preds = await prisma.prediction.findMany({
+    where: { userId, match: { finished: true } },
+    select: { points: true, match: { select: { round: { select: { id: true, number: true } } } } },
+  });
+
+  const byRound = new Map<number, PlayerProfile["rounds"][number]>();
+  for (const p of preds) {
+    const r = p.match.round;
+    let e = byRound.get(r.id);
+    if (!e) {
+      e = { roundId: r.id, number: r.number, points: 0, predicted: 0, exact: 0 };
+      byRound.set(r.id, e);
+    }
+    e.points += p.points ?? 0;
+    e.predicted += 1;
+    if (p.points === 40) e.exact += 1;
+  }
+
+  return {
+    user: entry.user,
+    position: idx + 1,
+    totalPlayers: general.length,
+    points: entry.points,
+    roundWins: entry.roundWins,
+    exactCount: entry.exactCount,
+    efficiency: entry.efficiency,
+    rounds: [...byRound.values()].sort((a, b) => b.number - a.number),
+  };
 }
 
 /** IDs dos líderes atuais do ranking geral (pode haver empate). */

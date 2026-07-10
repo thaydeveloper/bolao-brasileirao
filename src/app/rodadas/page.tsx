@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { getRoundWinners } from "@/lib/ranking";
-import { firstKickoff, roundStatus, STATUS_LABEL } from "@/lib/rounds";
+import { getRoundWinnersMap } from "@/lib/ranking";
+import { roundStatus, STATUS_LABEL } from "@/lib/rounds";
 
 export const dynamic = "force-dynamic";
 
@@ -16,18 +16,18 @@ const BADGE: Record<string, string> = {
 export default async function RodadasPage() {
   await requireUser();
 
-  const rounds = await prisma.round.findMany({
-    include: { matches: true },
-    orderBy: { number: "desc" },
-  });
+  // Duas consultas no total (rodadas + vencedores em lote), em vez de recalcular
+  // o ranking de cada rodada individualmente.
+  const [rounds, winnersMap] = await Promise.all([
+    prisma.round.findMany({ include: { matches: true }, orderBy: { number: "desc" } }),
+    getRoundWinnersMap(),
+  ]);
 
-  const items = await Promise.all(
-    rounds.map(async (round) => {
-      const status = roundStatus(round);
-      const winners = status === "encerrada" ? await getRoundWinners(round) : [];
-      return { round, status, winners };
-    })
-  );
+  const items = rounds.map((round) => {
+    const status = roundStatus(round);
+    const winner = status === "encerrada" ? winnersMap.get(round.id) : undefined;
+    return { round, status, winner };
+  });
 
   return (
     <main>
@@ -44,14 +44,13 @@ export default async function RodadasPage() {
         </div>
       )}
 
-      {items.map(({ round, status, winners }) => (
+      {items.map(({ round, status, winner }) => (
         <Link key={round.id} href={`/rodadas/${round.id}`} className="list-link">
           <div>
             <strong>Rodada {round.number}</strong>
             <div className="muted">
               {round.matches.length} jogos
-              {winners.length > 0 &&
-                ` · 🏆 ${winners.map((w) => w.user.name).join(" e ")} (${winners[0].points} pts)`}
+              {winner && ` · 🏆 ${winner.names.join(" e ")} (${winner.points} pts)`}
             </div>
           </div>
           <span className={`badge ${BADGE[status]}`}>{STATUS_LABEL[status]}</span>

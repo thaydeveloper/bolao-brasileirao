@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { computeGeneralRanking } from "@/lib/ranking";
-import Avatar from "@/components/Avatar";
+import PlayerLink from "@/components/PlayerLink";
 
 export const dynamic = "force-dynamic";
 
@@ -17,17 +17,17 @@ export default async function RankingPage() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div className="table-wrap">
-          <table>
+          <table className="ranking-table">
             <thead>
               <tr>
-                <th style={{ width: 36 }}>#</th>
+                <th style={{ width: 30 }}>#</th>
                 <th>Jogador</th>
-                <th className="num">Vitórias em rodadas</th>
-                <th className="num">Placares exatos</th>
-                <th className="num hide-sm">Aproveitamento</th>
-                <th className="num">Pontos</th>
+                <th className="num" title="Pontos">Pts</th>
+                <th className="num" title="Vitórias em rodadas">Vit.</th>
+                <th className="num" title="Placares exatos">Exatos</th>
+                <th className="num hide-sm" title="Aproveitamento">Aprov.</th>
               </tr>
             </thead>
             <tbody>
@@ -37,22 +37,24 @@ export default async function RankingPage() {
                     <span className={`pos ${i < 3 ? `pos-${i + 1}` : ""}`}>{i + 1}</span>
                   </td>
                   <td>
-                    <span className="player-cell">
-                      <Avatar name={entry.user.name} photoUrl={entry.user.photoUrl} />
-                      {entry.user.name}
-                    </span>
+                    <PlayerLink id={entry.user.id} name={entry.user.name} photoUrl={entry.user.photoUrl} />
                   </td>
+                  <td className="num points-badge">{entry.points}</td>
                   <td className="num">{entry.roundWins}</td>
                   <td className="num">{entry.exactCount}</td>
                   <td className="num hide-sm">{entry.efficiency}%</td>
-                  <td className="num points-badge">{entry.points}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="muted" style={{ marginTop: 12 }}>
-          Aproveitamento = pontos conquistados ÷ pontos máximos possíveis (40 por jogo encerrado).
+      </div>
+
+      <div className="card">
+        <p className="muted" style={{ margin: 0 }}>
+          <strong>Pts</strong> pontos · <strong>Vit.</strong> vitórias em rodadas ·{" "}
+          <strong>Exatos</strong> placares cravados · <strong>Aprov.</strong> aproveitamento
+          (pontos ÷ máximo possível, 40 por jogo encerrado). Toque em um jogador para ver o perfil.
         </p>
       </div>
     </main>
