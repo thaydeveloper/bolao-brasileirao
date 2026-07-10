@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // conexão com pooling (runtime serverless)
+  directUrl = env("DIRECT_URL") // conexão direta (migrações / db push)
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  name          String
+  email         String         @unique
+  passwordHash  String
+  photoUrl      String?
+  pixKey        String?
+  pixKeyType    String? // aleatoria | cpf | telefone | email
+  isAdmin       Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  predictions   Prediction[]
+  notifications Notification[]
+  memberships   GroupMember[]
+}
+
+model Group {
+  id         Int           @id @default(autoincrement())
+  name       String
+  maxMembers Int           @default(8)
+  createdAt  DateTime      @default(now())
+  members    GroupMember[]
+}
+
+model GroupMember {
+  id      Int   @id @default(autoincrement())
+  groupId Int
+  userId  Int
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+}
+
+model Round {
+  id       Int     @id @default(autoincrement())
+  number   Int
+  season   String  @default("2026")
+  canceled Boolean @default(false)
+  matches  Match[]
+
+  @@unique([season, number])
+}
+
+model Match {
+  id          Int          @id @default(autoincrement())
+  roundId     Int
+  round       Round        @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  externalId  Int?         @unique // id da partida na API (football-data.org)
+  homeTeam    String
+  awayTeam    String
+  homeCrest   String? // URL do escudo do mandante
+  awayCrest   String? // URL do escudo do visitante
+  kickoff     DateTime
+  homeScore   Int?
+  awayScore   Int?
+  finished    Boolean      @default(false)
+  predictions Prediction[]
+}
+
+model Prediction {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  matchId   Int
+  homeScore Int
+  awayScore Int
+  points    Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, matchId])
+}
+
+model Notification {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  type      String // lembrete-rodada | lembrete-jogo | resultado-rodada | novo-lider
+  message   String
+  dedupeKey String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+}
