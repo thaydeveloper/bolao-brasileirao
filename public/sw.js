@@ -1,0 +1,43 @@
+// Service worker mínimo para tornar o app instalável (PWA).
+// Estratégia: rede primeiro; se offline, tenta o cache. Não faz cache agressivo
+// para não servir dados desatualizados do bolão.
+const CACHE = "bolao-v1";
+
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  if (request.method !== "GET") return;
+
+  event.respondWith(
+    fetch(request)
+      .then((response) => {
+        // Guarda a última navegação bem-sucedida para fallback offline
+        if (request.mode === "navigate") {
+          const copy = response.clone();
+          caches.open(CACHE).then((c) => c.put(request, copy));
+        }
+        return response;
+      })
+      .catch(async () => {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+        if (request.mode === "navigate") {
+          const home = await caches.match("/");
+          if (home) return home;
+        }
+        return new Response("Offline", { status: 503, statusText: "Offline" });
+      })
+  );
+});
