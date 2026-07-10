@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { updateProfileAction, changePasswordAction } from "@/app/actions/profile";
 import type { FormState } from "@/app/actions/auth";
+import PhotoUpload from "@/components/PhotoUpload";
 
 type Defaults = { name: string; photoUrl: string; pixKey: string; pixKeyType: string };
 
@@ -29,10 +30,7 @@ export default function ProfileForms({ defaults }: { defaults: Defaults }) {
             <label htmlFor="name">Nome</label>
             <input id="name" name="name" defaultValue={defaults.name} required />
           </div>
-          <div className="field">
-            <label htmlFor="photoUrl">Foto (URL)</label>
-            <input id="photoUrl" name="photoUrl" type="url" defaultValue={defaults.photoUrl} placeholder="https://..." />
-          </div>
+          <PhotoUpload label="Foto" defaultValue={defaults.photoUrl} personName={defaults.name} />
           <div className="field">
             <label htmlFor="pixKeyType">Tipo da chave PIX</label>
             <select id="pixKeyType" name="pixKeyType" defaultValue={defaults.pixKeyType}>

@@ -302,6 +302,48 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   vertical-align: middle;
   flex-shrink: 0;
 }
+
+/* ---------- Upload de foto ---------- */
+.photo-upload {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.photo-upload:hover,
+.photo-upload:focus-visible {
+  border-color: var(--green);
+  outline: none;
+}
+.photo-preview {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.photo-placeholder {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.photo-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
 .score-inputs {
   display: flex;
   align-items: center;

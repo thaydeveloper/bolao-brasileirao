@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { registerAction, type FormState } from "@/app/actions/auth";
+import PhotoUpload from "@/components/PhotoUpload";
 
 export default function CadastroPage() {
   const [state, formAction, pending] = useActionState<FormState, FormData>(registerAction, undefined);
@@ -26,10 +27,7 @@ export default function CadastroPage() {
             <label htmlFor="password">Senha (mín. 6 caracteres)</label>
             <input id="password" name="password" type="password" required minLength={6} autoComplete="new-password" />
           </div>
-          <div className="field">
-            <label htmlFor="photoUrl">Foto (URL, opcional)</label>
-            <input id="photoUrl" name="photoUrl" type="url" placeholder="https://..." />
-          </div>
+          <PhotoUpload label="Foto (opcional)" />
           <div className="field">
             <label htmlFor="pixKeyType">Tipo da chave PIX (opcional)</label>
             <select id="pixKeyType" name="pixKeyType" defaultValue="">
