@@ -28,16 +28,33 @@ export function firstKickoff(round: RoundWithMatches): Date | null {
   );
 }
 
-/** A "rodada atual": a rodada não cancelada com jogos ainda não encerrados e o menor horário de início. */
-export async function getCurrentRound(): Promise<RoundWithMatches | null> {
+/**
+ * A "rodada vigente": a rodada do PRÓXIMO jogo a acontecer (kickoff no futuro).
+ * Usa o próximo jogo em vez do menor horário entre rodadas abertas, para que um
+ * jogo adiado de uma rodada antiga não faça uma rodada passada parecer a atual.
+ * Se não houver jogos futuros, cai para a rodada aberta de menor número.
+ */
+export async function getCurrentRound(now = new Date()): Promise<RoundWithMatches | null> {
+  const nextMatch = await prisma.match.findFirst({
+    where: { finished: false, kickoff: { gte: now }, round: { canceled: false } },
+    orderBy: { kickoff: "asc" },
+    select: { roundId: true },
+  });
+
+  if (nextMatch) {
+    return prisma.round.findUnique({
+      where: { id: nextMatch.roundId },
+      include: { matches: { orderBy: { kickoff: "asc" } } },
+    });
+  }
+
+  // Sem jogos futuros: pega a rodada aberta (não totalmente encerrada) de menor número
   const rounds = await prisma.round.findMany({
     where: { canceled: false },
     include: { matches: { orderBy: { kickoff: "asc" } } },
+    orderBy: { number: "asc" },
   });
-  const open = rounds
-    .filter((r) => r.matches.length > 0 && !r.matches.every((m) => m.finished))
-    .sort((a, b) => firstKickoff(a)!.getTime() - firstKickoff(b)!.getTime());
-  return open[0] ?? null;
+  return rounds.find((r) => r.matches.length > 0 && !r.matches.every((m) => m.finished)) ?? null;
 }
 
 /** A última rodada totalmente encerrada (para exibir o vencedor e a chave PIX). */
