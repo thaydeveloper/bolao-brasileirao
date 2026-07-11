@@ -21,6 +21,7 @@ model User {
   predictions   Prediction[]
   notifications Notification[]
   memberships   GroupMember[]
+  roundMessages RoundMessage[]
 }
 
 model Group {
@@ -42,13 +43,29 @@ model GroupMember {
 }
 
 model Round {
-  id       Int     @id @default(autoincrement())
+  id       Int           @id @default(autoincrement())
   number   Int
-  season   String  @default("2026")
-  canceled Boolean @default(false)
+  season   String        @default("2026")
+  canceled Boolean       @default(false)
   matches  Match[]
+  message  RoundMessage?
 
   @@unique([season, number])
+}
+
+/**
+ * Recado do campeão: o vencedor de uma rodada pode deixar UMA mensagem por rodada.
+ * Enquanto a próxima rodada não começa, ela é enviada 3x/dia aos demais participantes.
+ */
+model RoundMessage {
+  id        Int      @id @default(autoincrement())
+  roundId   Int      @unique
+  round     Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  message   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Match {

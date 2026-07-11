@@ -486,6 +486,34 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .pix-box .btn { width: 100%; }
 }
 
+/* ---------- Recado do campeão ---------- */
+.winner-msg {
+  margin-top: 12px;
+  background: var(--bg);
+  border-left: 3px solid var(--yellow);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.winner-msg-text {
+  margin: 4px 0 0;
+  font-style: italic;
+  word-break: break-word;
+}
+.winner-msg-form {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+}
+.winner-msg-form h3 {
+  font-size: 0.95rem;
+  margin: 0 0 4px;
+}
+.winner-msg-form p.muted {
+  margin: 0 0 10px;
+  font-size: 0.825rem;
+}
+.winner-msg-form .field { margin-bottom: 10px; }
+
 /* ---------- Notificações ---------- */
 .notif-wrap { position: relative; }
 .notif-btn {

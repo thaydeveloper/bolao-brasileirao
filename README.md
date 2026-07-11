@@ -52,12 +52,14 @@ Implementadas em [`src/lib/scoring.ts`](src/lib/scoring.ts) e cobertas por [`tes
 - **Palpites** — editáveis quantas vezes quiser até o **início de cada partida** (bloqueio individual por jogo, validado no servidor em `savePredictionAction`). Os palpites dos demais jogadores só ficam visíveis depois que a partida começa.
 - **Resultados** — o admin registra o placar oficial em **Admin → Resultados**; os pontos de todos os palpites daquele jogo são recalculados na hora. Há botão de **reprocessar** a rodada inteira.
 - **Vencedor da rodada** — quando todos os jogos terminam, o(s) vencedor(es) aparecem no dashboard e na página da rodada com a **chave PIX** para cópia (empate = prêmio dividido).
+- **Recado do campeão** — enquanto a próxima rodada não começa, o vencedor pode escrever um recado no dashboard. Ele é enviado como **3 notificações por dia** (09h/14h/20h de Brasília) aos demais participantes e é desabilitado automaticamente no **início da próxima rodada** (primeiro jogo). Empate: qualquer um dos vencedores edita o recado da rodada.
 - **Rankings** — por rodada e geral (pontos, vitórias em rodadas, placares exatos e aproveitamento), recalculados a cada resultado.
 - **Notificações (sininho 🔔)** —
   - lembrete ~30 min antes do primeiro jogo para quem não completou os palpites;
   - lembrete ~30 min antes de cada jogo sem palpite;
   - aviso quando a pontuação da rodada é atualizada;
-  - aviso quando alguém assume a liderança geral.
+  - aviso quando alguém assume a liderança geral;
+  - **recado do campeão** 3×/dia (09h/14h/20h de Brasília) até o início da próxima rodada.
 
 ### Agendamento dos lembretes
 
@@ -99,7 +101,7 @@ Menu **Admin** (só para administradores):
 ## Estrutura
 
 ```
-prisma/schema.prisma        # User, Group, GroupMember, Round, Match, Prediction, Notification
+prisma/schema.prisma        # User, Group, GroupMember, Round, Match, Prediction, Notification, RoundMessage
 prisma/seed.ts              # dados de demonstração
 src/lib/scoring.ts          # regras de pontuação
 src/lib/ranking.ts          # ranking da rodada e geral

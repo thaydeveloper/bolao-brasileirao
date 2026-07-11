@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { roundStatus, STATUS_LABEL } from "@/lib/rounds";
+import { dataCompletaBR, roundStatus, STATUS_LABEL } from "@/lib/rounds";
 import { removeMemberAction, toggleCancelRoundAction } from "@/app/actions/admin";
 import { isConfigured } from "@/lib/football";
+import { getWinnerMessageState, WINNER_MESSAGE_MAX } from "@/lib/winnerMessage";
 import NewRoundForm from "./NewRoundForm";
 import ImportForm from "./ImportForm";
+import WinnerMessageTest from "./WinnerMessageTest";
 import Avatar from "@/components/Avatar";
 
 export const dynamic = "force-dynamic";
@@ -13,9 +15,11 @@ export const dynamic = "force-dynamic";
 export default async function AdminPage() {
   const admin = await requireAdmin();
 
-  const [rounds, users] = await Promise.all([
+  const [rounds, users, winnerMsgState] = await Promise.all([
     prisma.round.findMany({ include: { matches: true }, orderBy: { number: "desc" } }),
     prisma.user.findMany({ orderBy: { name: "asc" } }),
+    // .catch: tolera o intervalo entre o deploy e o `db push` da tabela RoundMessage
+    getWinnerMessageState().catch(() => null),
   ]);
 
   return (
@@ -30,6 +34,26 @@ export default async function AdminPage() {
       <ImportForm configured={isConfigured()} />
 
       <NewRoundForm />
+
+      <div className="card">
+        <h2>💬 Recado do campeão</h2>
+        {winnerMsgState ? (
+          <WinnerMessageTest
+            roundNumber={winnerMsgState.round.number}
+            defaultMessage={winnerMsgState.message?.message ?? ""}
+            deadlineLabel={
+              winnerMsgState.deadline ? dataCompletaBR.format(winnerMsgState.deadline) : null
+            }
+            maxLength={WINNER_MESSAGE_MAX}
+            windowOpen={winnerMsgState.open}
+          />
+        ) : (
+          <p className="muted">
+            Disponível quando houver uma rodada encerrada (e a tabela RoundMessage criada via{" "}
+            <code>pnpm run db:push</code>).
+          </p>
+        )}
+      </div>
 
       <div className="card">
         <h2>Rodadas</h2>

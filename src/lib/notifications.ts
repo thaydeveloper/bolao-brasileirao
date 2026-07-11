@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import { getGeneralLeaders } from "./ranking";
 import { firstKickoff } from "./rounds";
+import { dueSlotsToday, getWinnerMessageState, winnerMessageText } from "./winnerMessage";
 
 const REMINDER_WINDOW_MS = 30 * 60 * 1000; // 30 minutos
 
@@ -104,6 +105,35 @@ export async function checkNewLeader(previousLeaderIds: number[]) {
   for (const userId of current) {
     if (!previousLeaderIds.includes(userId)) {
       await notify(userId, "novo-lider", "Você assumiu a liderança do bolão! 🏆");
+    }
+  }
+}
+
+/**
+ * Recado do campeão: envia até 3 notificações por dia (horários em NOTIF_SLOTS_BR) aos
+ * demais participantes, com a mensagem escrita pelo vencedor da última rodada encerrada.
+ * Para automaticamente quando a próxima rodada começa (janela fechada). Idempotente:
+ * dedupe por usuário + recado + dia + slot, então pode rodar no cron e no dashboard.
+ */
+export async function checkWinnerMessages(now = new Date()) {
+  const state = await getWinnerMessageState(now);
+  if (!state || !state.open || !state.message) return;
+
+  const due = dueSlotsToday(now, state.message.createdAt);
+  if (due.length === 0) return;
+
+  const users = await prisma.user.findMany({ select: { id: true } });
+  const text = winnerMessageText(state.round.number, state.message.message);
+
+  for (const slot of due) {
+    for (const user of users) {
+      if (state.winnerIds.includes(user.id)) continue; // vencedores não recebem o próprio recado
+      await notify(
+        user.id,
+        "recado-campeao",
+        text,
+        `recado-${state.message.id}-${slot.date}-${slot.index}`
+      );
     }
   }
 }

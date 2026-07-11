@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { checkReminders } from "@/lib/notifications";
+import { checkReminders, checkWinnerMessages } from "@/lib/notifications";
 import { computeGeneralRanking, computeRoundRanking, getRoundWinners } from "@/lib/ranking";
 import {
   dataCompletaBR,
@@ -10,17 +10,20 @@ import {
   getLastFinishedRound,
   isMatchLocked,
 } from "@/lib/rounds";
+import { WINNER_MESSAGE_MAX } from "@/lib/winnerMessage";
 import Countdown from "@/components/Countdown";
 import CopyButton from "@/components/CopyButton";
 import PlayerLink from "@/components/PlayerLink";
+import WinnerMessageForm from "@/components/WinnerMessageForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const user = await requireUser();
 
-  // Dispara a verificação de lembretes (idempotente) a cada carregamento do dashboard
+  // Dispara as verificações idempotentes (lembretes + recado do campeão) a cada carregamento
   await checkReminders().catch(() => {});
+  await checkWinnerMessages().catch(() => {});
 
   const [currentRound, lastFinished, generalRanking] = await Promise.all([
     getCurrentRound(),
@@ -50,6 +53,17 @@ export default async function DashboardPage() {
 
   const roundRanking = currentRound ? await computeRoundRanking(currentRound.id) : [];
   const winners = lastFinished ? await getRoundWinners(lastFinished) : [];
+
+  // Recado do campeão: janela aberta até o início da próxima rodada.
+  // .catch: tolera o intervalo entre o deploy e o `db push` da tabela RoundMessage.
+  const winnerMessage = lastFinished
+    ? await prisma.roundMessage
+        .findUnique({ where: { roundId: lastFinished.id } })
+        .catch(() => null)
+    : null;
+  const nextDeadline = currentRound ? firstKickoff(currentRound) : null;
+  const messageWindowOpen = nextDeadline === null || now < nextDeadline;
+  const iAmWinner = winners.some((w) => w.user.id === user.id);
 
   return (
     <main>
@@ -136,6 +150,22 @@ export default async function DashboardPage() {
                 {w.user.name} ainda não cadastrou a chave PIX.
               </p>
             )
+          )}
+
+          {winnerMessage && (
+            <div className="winner-msg">
+              <div className="muted">💬 Recado do campeão</div>
+              <p className="winner-msg-text">“{winnerMessage.message}”</p>
+            </div>
+          )}
+
+          {iAmWinner && messageWindowOpen && (
+            <WinnerMessageForm
+              roundNumber={lastFinished.number}
+              defaultMessage={winnerMessage?.message ?? ""}
+              deadlineLabel={nextDeadline ? dataCompletaBR.format(nextDeadline) : null}
+              maxLength={WINNER_MESSAGE_MAX}
+            />
           )}
         </div>
       )}
