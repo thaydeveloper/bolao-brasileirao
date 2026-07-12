@@ -2,24 +2,38 @@ import { prisma } from "./db";
 import { getGeneralLeaders } from "./ranking";
 import { firstKickoff } from "./rounds";
 import { dueSlotsToday, getWinnerMessageState, winnerMessageText } from "./winnerMessage";
+import { sendPushToUser } from "./push";
 
 const REMINDER_WINDOW_MS = 30 * 60 * 1000; // 30 minutos
 
-/** Cria uma notificação. Com dedupeKey, nunca duplica para o mesmo usuário. */
+/**
+ * Cria uma notificação in-app e dispara a notificação push (pop-up) para o usuário.
+ * Com dedupeKey, nunca duplica: se já existir, não recria nem reenvia o push.
+ */
 export async function notify(
   userId: number,
   type: string,
   message: string,
-  dedupeKey?: string
+  dedupeKey?: string,
+  options?: { title?: string; url?: string }
 ) {
+  let created = true;
   if (!dedupeKey) {
     await prisma.notification.create({ data: { userId, type, message } });
-    return;
+  } else {
+    try {
+      await prisma.notification.create({ data: { userId, type, message, dedupeKey } });
+    } catch {
+      created = false; // já enviada (violação de unique userId+dedupeKey)
+    }
   }
-  try {
-    await prisma.notification.create({ data: { userId, type, message, dedupeKey } });
-  } catch {
-    // já enviada (violação de unique userId+dedupeKey) — ignora
+
+  if (created) {
+    await sendPushToUser(userId, {
+      title: options?.title ?? "Bolão Brasileirão ⚽",
+      body: message,
+      url: options?.url ?? "/",
+    }).catch(() => {});
   }
 }
 

@@ -8,6 +8,7 @@ import { getWinnerMessageState, WINNER_MESSAGE_MAX } from "@/lib/winnerMessage";
 import NewRoundForm from "./NewRoundForm";
 import ImportForm from "./ImportForm";
 import WinnerMessageTest from "./WinnerMessageTest";
+import AdminBroadcastForm from "./AdminBroadcastForm";
 import Avatar from "@/components/Avatar";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,8 @@ export default async function AdminPage() {
           <p className="muted">Rodadas, resultados e participantes.</p>
         </div>
       </div>
+
+      <AdminBroadcastForm />
 
       <ImportForm configured={isConfigured()} />
 

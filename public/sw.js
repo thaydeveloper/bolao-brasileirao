@@ -1,7 +1,40 @@
-// Service worker mínimo para tornar o app instalável (PWA).
-// Estratégia: rede primeiro; se offline, tenta o cache. Não faz cache agressivo
-// para não servir dados desatualizados do bolão.
-const CACHE = "bolao-v1";
+// Service worker do PWA: cache leve para offline + notificações push (pop-up).
+const CACHE = "bolao-v2";
+
+// ---------- Notificações push ----------
+self.addEventListener("push", (event) => {
+  let data = { title: "Bolão Brasileirão ⚽", body: "Nova atualização no bolão.", url: "/" };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch {
+    if (event.data) data.body = event.data.text();
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { url: data.url || "/" },
+      vibrate: [80, 40, 80],
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ("focus" in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    })
+  );
+});
 
 self.addEventListener("install", () => {
   self.skipWaiting();
