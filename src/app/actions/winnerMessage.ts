@@ -69,3 +69,30 @@ export async function sendWinnerMessageTestAction(
   revalidatePath("/", "layout");
   return { ok: "Notificação de teste enviada para você — confira o sininho 🔔." };
 }
+
+/**
+ * Envia AGORA o recado atual para TODOS os participantes (inclusive o admin),
+ * a qualquer momento — ignora janela e horários programados. Sem dedupe: cada
+ * clique gera um novo envio. Use para validar que o recado chega para o grupo.
+ */
+export async function sendWinnerMessageToAllAction(
+  _prev: FormState,
+  _formData: FormData
+): Promise<FormState> {
+  await requireAdmin();
+
+  const state = await getWinnerMessageState();
+  if (!state) return { error: "Ainda não há uma rodada encerrada." };
+  if (!state.message) {
+    return { error: `Nenhum recado cadastrado para a rodada ${state.round.number}. Escreva um acima.` };
+  }
+
+  const users = await prisma.user.findMany({ select: { id: true } });
+  const text = winnerMessageText(state.round.number, state.message.message);
+  for (const user of users) {
+    await notify(user.id, "recado-campeao", text);
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: `Recado enviado agora para ${users.length} participantes (incluindo você) 🔔.` };
+}

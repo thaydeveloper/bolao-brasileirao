@@ -1,7 +1,10 @@
 "use client";
 
 import { useActionState } from "react";
-import { sendWinnerMessageTestAction } from "@/app/actions/winnerMessage";
+import {
+  sendWinnerMessageTestAction,
+  sendWinnerMessageToAllAction,
+} from "@/app/actions/winnerMessage";
 import type { FormState } from "@/app/actions/auth";
 import WinnerMessageForm from "@/components/WinnerMessageForm";
 
@@ -20,6 +23,10 @@ export default function WinnerMessageTest({
 }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(
     sendWinnerMessageTestAction,
+    undefined
+  );
+  const [allState, allFormAction, allPending] = useActionState<FormState, FormData>(
+    sendWinnerMessageToAllAction,
     undefined
   );
 
@@ -63,6 +70,22 @@ export default function WinnerMessageTest({
         <form action={formAction}>
           <button className="btn btn-secondary" disabled={pending}>
             {pending ? "Enviando..." : "Enviar notificação de teste para mim"}
+          </button>
+        </form>
+      </div>
+
+      <div className="winner-msg-form">
+        <h3>📣 Enviar para todos agora</h3>
+        <p className="muted">
+          Dispara o recado imediatamente para <strong>todos os participantes do bolão</strong>{" "}
+          (incluindo você), a qualquer momento — ignora a janela e os horários programados.
+          Cada clique gera um novo envio no sininho de todo mundo.
+        </p>
+        {allState?.error && <div className="form-error">{allState.error}</div>}
+        {allState?.ok && <div className="form-success">{allState.ok}</div>}
+        <form action={allFormAction}>
+          <button className="btn" disabled={allPending}>
+            {allPending ? "Enviando..." : "Enviar recado para todos agora"}
           </button>
         </form>
       </div>
