@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { checkReminders, checkWinnerMessages } from "@/lib/notifications";
+import { checkReminders, checkPendingReminders, checkWinnerMessages } from "@/lib/notifications";
 
 /**
  * Endpoint para agendadores (Vercel Cron, Task Scheduler, GitHub Actions...).
@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
   }
 
   await checkReminders();
+  await checkPendingReminders().catch(() => {});
   // .catch: tolera o intervalo entre o deploy e o `db push` da tabela RoundMessage
   await checkWinnerMessages().catch(() => {});
   return NextResponse.json({ ok: true, checkedAt: new Date().toISOString() });

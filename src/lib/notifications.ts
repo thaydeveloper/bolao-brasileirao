@@ -100,6 +100,47 @@ export async function checkReminders(now = new Date()) {
   }
 }
 
+/**
+ * Lembrete de palpites pendentes na rodada vigente e na próxima (as 2 rodadas
+ * mais próximas que ainda têm jogos abertos). Envia no máximo 1 aviso por rodada
+ * por dia para cada usuário (dedupe por dia), como notificação in-app + push.
+ */
+export async function checkPendingReminders(now = new Date()) {
+  const rounds = await prisma.round.findMany({
+    where: { canceled: false, matches: { some: { finished: false, kickoff: { gt: now } } } },
+    include: { matches: { include: { predictions: { select: { userId: true } } } } },
+  });
+
+  const nextOpen = (r: (typeof rounds)[number]) =>
+    Math.min(
+      ...r.matches.filter((m) => !m.finished && m.kickoff > now).map((m) => m.kickoff.getTime())
+    );
+
+  const target = rounds.sort((a, b) => nextOpen(a) - nextOpen(b)).slice(0, 2); // vigente + próxima
+  if (target.length === 0) return;
+
+  const users = await prisma.user.findMany({ select: { id: true } });
+  const day = now.toISOString().slice(0, 10);
+
+  for (const round of target) {
+    const openMatches = round.matches.filter((m) => !m.finished && m.kickoff > now);
+    for (const user of users) {
+      const pending = openMatches.filter(
+        (m) => !m.predictions.some((p) => p.userId === user.id)
+      ).length;
+      if (pending > 0) {
+        await notify(
+          user.id,
+          "palpite-pendente",
+          `Você ainda tem ${pending} jogo(s) sem palpite na rodada ${round.number}. Não perca o prazo!`,
+          `pendente-r${round.id}-${day}`,
+          { title: "⏰ Palpites pendentes", url: `/rodadas/${round.id}` }
+        );
+      }
+    }
+  }
+}
+
 /** Avisa a todos que a pontuação da rodada foi atualizada (rodada totalmente encerrada). */
 export async function notifyRoundFinished(roundId: number, roundNumber: number) {
   const users = await prisma.user.findMany({ select: { id: true } });

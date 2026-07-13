@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { checkReminders, checkWinnerMessages } from "@/lib/notifications";
+import { checkReminders, checkPendingReminders, checkWinnerMessages } from "@/lib/notifications";
 import { computeGeneralRanking, computeRoundRanking, getRoundWinners } from "@/lib/ranking";
 import {
   dataCompletaBR,
@@ -23,6 +23,7 @@ export default async function DashboardPage() {
 
   // Dispara as verificações idempotentes (lembretes + recado do campeão) a cada carregamento
   await checkReminders().catch(() => {});
+  await checkPendingReminders().catch(() => {});
   await checkWinnerMessages().catch(() => {});
 
   const [currentRound, lastFinished, generalRanking] = await Promise.all([
