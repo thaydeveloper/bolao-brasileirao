@@ -52,3 +52,43 @@ export async function sendAdminBroadcastAction(
   }
   return { ok: `Mensagem enviada para ${users.length} participantes (in-app + push) 🔔.` };
 }
+
+/**
+ * Envia o lembrete da rodada em andamento SÓ para o admin — mesmo que ele já
+ * tenha palpitado (o lembrete normal pula quem completou). Sem dedupe: serve
+ * para testar o pop-up quando quiser.
+ */
+export async function sendReminderTestToMeAction(
+  _prev: FormState,
+  _formData: FormData
+): Promise<FormState> {
+  const admin = await requireAdmin();
+  const now = new Date();
+
+  // Mesmas 2 rodadas do lembrete real (vigente + próxima, incluindo jogos atrasados)
+  const rounds = await prisma.round.findMany({
+    where: { canceled: false, matches: { some: { finished: false, kickoff: { gt: now } } } },
+    include: { matches: { include: { predictions: { select: { userId: true } } } } },
+  });
+  if (rounds.length === 0) return { error: "Nenhuma rodada com jogos abertos no momento." };
+
+  const nextOpen = (r: (typeof rounds)[number]) =>
+    Math.min(...r.matches.filter((m) => !m.finished && m.kickoff > now).map((m) => m.kickoff.getTime()));
+  const target = rounds.sort((a, b) => nextOpen(a) - nextOpen(b)).slice(0, 2);
+
+  for (const round of target) {
+    const open = round.matches.filter((m) => !m.finished && m.kickoff > now);
+    const pending = open.filter((m) => !m.predictions.some((p) => p.userId === admin.id)).length;
+    const message =
+      pending > 0
+        ? `Você ainda tem ${pending} jogo(s) sem palpite na rodada ${round.number}. Não perca o prazo!`
+        : `Teste ✅ — rodada ${round.number}: ${open.length} jogo(s) aberto(s) (você já palpitou todos).`;
+    await notify(admin.id, "palpite-pendente", message, undefined, {
+      title: "⏰ Palpites pendentes",
+      url: `/rodadas/${round.id}`,
+    });
+  }
+
+  const nums = target.map((r) => r.number).join(" e ");
+  return { ok: `Lembrete de teste enviado pra você (rodadas ${nums}) — veja o sininho 🔔 e o pop-up.` };
+}

@@ -8,6 +8,7 @@ import CopyButton from "@/components/CopyButton";
 import Avatar from "@/components/Avatar";
 import TeamCrest from "@/components/TeamCrest";
 import PlayerLink from "@/components/PlayerLink";
+import Countdown from "@/components/Countdown";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +67,13 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
     );
   const completos = predictionStatus.filter((p) => p.total > 0 && p.predicted >= p.total).length;
 
+  // Próximo jogo ainda aberto para palpite (define o tempo restante para palpitar)
+  const now = new Date();
+  const nextOpen =
+    round.matches
+      .filter((m) => !m.finished && m.kickoff > now)
+      .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime())[0] ?? null;
+
   return (
     <main>
       <div className="section-header">
@@ -75,6 +83,18 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
         </div>
         <span className={`badge ${BADGE[status]}`}>{STATUS_LABEL[status]}</span>
       </div>
+
+      {nextOpen && (
+        <div className="card deadline-card">
+          <div>
+            <div className="muted">⏳ Tempo restante para palpitar (próximo jogo)</div>
+            <div className="deadline-match">
+              {nextOpen.homeTeam} x {nextOpen.awayTeam}
+            </div>
+          </div>
+          <Countdown target={nextOpen.kickoff.toISOString()} />
+        </div>
+      )}
 
       {winners.length > 0 && (
         <div className="card winner-card">
@@ -143,7 +163,15 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
           return (
             <div className="match" key={match.id}>
               <div className="match-header">
-                <span>{dataCompletaBR.format(match.kickoff)}</span>
+                <span>
+                  {dataCompletaBR.format(match.kickoff)}
+                  {!locked && !match.finished && (
+                    <>
+                      {" · fecha em "}
+                      <Countdown target={match.kickoff.toISOString()} className="countdown-inline" />
+                    </>
+                  )}
+                </span>
                 {match.finished ? (
                   <span className="badge badge-gray">Encerrado</span>
                 ) : locked ? (

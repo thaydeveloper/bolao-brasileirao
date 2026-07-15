@@ -14,7 +14,13 @@ function format(ms: number): string {
   return `${m}min ${String(s).padStart(2, "0")}s`;
 }
 
-export default function Countdown({ target }: { target: string }) {
+export default function Countdown({
+  target,
+  className = "countdown",
+}: {
+  target: string;
+  className?: string;
+}) {
   const [text, setText] = useState<string>("...");
 
   useEffect(() => {
@@ -25,5 +31,5 @@ export default function Countdown({ target }: { target: string }) {
     return () => clearInterval(id);
   }, [target]);
 
-  return <span className="countdown">{text}</span>;
+  return <span className={className}>{text}</span>;
 }

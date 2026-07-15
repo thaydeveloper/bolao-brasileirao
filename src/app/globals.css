@@ -452,6 +452,22 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   color: var(--green);
   white-space: nowrap;
 }
+.countdown-inline {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--yellow);
+  white-space: nowrap;
+}
+
+/* card de tempo restante para palpitar */
+.deadline-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.deadline-match { font-weight: 700; font-size: 1rem; margin-top: 2px; }
 
 @media (max-width: 640px) {
   .stat { padding: 10px 12px; }

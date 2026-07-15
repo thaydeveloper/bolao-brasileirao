@@ -1,12 +1,16 @@
 "use client";
 
 import { useActionState } from "react";
-import { sendAdminBroadcastAction } from "@/app/actions/push";
+import { sendAdminBroadcastAction, sendReminderTestToMeAction } from "@/app/actions/push";
 import type { FormState } from "@/app/actions/auth";
 
 export default function AdminBroadcastForm() {
   const [state, formAction, pending] = useActionState<FormState, FormData>(
     sendAdminBroadcastAction,
+    undefined
+  );
+  const [testState, testAction, testPending] = useActionState<FormState, FormData>(
+    sendReminderTestToMeAction,
     undefined
   );
 
@@ -35,6 +39,21 @@ export default function AdminBroadcastForm() {
           {pending ? "Enviando..." : "Enviar para todos agora"}
         </button>
       </form>
+
+      <div className="winner-msg-form" style={{ marginTop: 16 }}>
+        <h3>⏰ Testar lembrete de palpites (só pra você)</h3>
+        <p className="muted">
+          Envia o lembrete da rodada em andamento e da próxima <strong>para a sua conta</strong>,
+          mesmo que você já tenha palpitado. Serve para conferir o pop-up.
+        </p>
+        {testState?.error && <div className="form-error">{testState.error}</div>}
+        {testState?.ok && <div className="form-success">{testState.ok}</div>}
+        <form action={testAction}>
+          <button className="btn btn-secondary" disabled={testPending}>
+            {testPending ? "Enviando..." : "Enviar lembrete de teste pra mim"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
