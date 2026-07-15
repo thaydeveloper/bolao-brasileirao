@@ -120,7 +120,8 @@ export async function checkPendingReminders(now = new Date()) {
   if (target.length === 0) return;
 
   const users = await prisma.user.findMany({ select: { id: true } });
-  const day = now.toISOString().slice(0, 10);
+  // Janela de 3 horas: no máximo 1 lembrete por rodada a cada 3h para cada usuário.
+  const slot = `${now.toISOString().slice(0, 10)}-t${Math.floor(now.getUTCHours() / 3)}`;
 
   for (const round of target) {
     const openMatches = round.matches.filter((m) => !m.finished && m.kickoff > now);
@@ -133,7 +134,7 @@ export async function checkPendingReminders(now = new Date()) {
           user.id,
           "palpite-pendente",
           `Você ainda tem ${pending} jogo(s) sem palpite na rodada ${round.number}. Não perca o prazo!`,
-          `pendente-r${round.id}-${day}`,
+          `pendente-r${round.id}-${slot}`,
           { title: "⏰ Palpites pendentes", url: `/rodadas/${round.id}` }
         );
       }

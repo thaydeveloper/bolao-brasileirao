@@ -47,6 +47,25 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
   const ranking = await computeRoundRanking(round.id);
   const winners = winnersFromRanking(ranking, round);
 
+  // Quadro "quem já palpitou" — só o progresso (X/N), nunca os placares
+  const allPlayers = await prisma.user.findMany({
+    select: { id: true, name: true, photoUrl: true },
+    orderBy: { name: "asc" },
+  });
+  const totalMatches = round.matches.length;
+  const predByUser = new Map<number, number>();
+  for (const m of round.matches)
+    for (const p of m.predictions) predByUser.set(p.userId, (predByUser.get(p.userId) ?? 0) + 1);
+  const predictionStatus = allPlayers
+    .map((pl) => ({ ...pl, predicted: predByUser.get(pl.id) ?? 0, total: totalMatches }))
+    .sort(
+      (a, b) =>
+        (a.predicted >= a.total ? 1 : 0) - (b.predicted >= b.total ? 1 : 0) ||
+        b.predicted - a.predicted ||
+        a.name.localeCompare(b.name)
+    );
+  const completos = predictionStatus.filter((p) => p.total > 0 && p.predicted >= p.total).length;
+
   return (
     <main>
       <div className="section-header">
@@ -83,6 +102,36 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
           )}
         </div>
       )}
+
+      <div className="card">
+        <div className="card-title">
+          <h2>Quem já palpitou</h2>
+          <span className="muted">
+            {completos}/{predictionStatus.length} completos
+          </span>
+        </div>
+        <p className="muted" style={{ marginBottom: 12 }}>
+          Mostra só quem enviou os palpites — os placares de cada um ficam em segredo até o jogo começar.
+        </p>
+        <div className="status-grid">
+          {predictionStatus.map((pl) => {
+            const done = pl.total > 0 && pl.predicted >= pl.total;
+            return (
+              <div className={`status-item ${done ? "done" : "pending"}`} key={pl.id}>
+                <Avatar name={pl.name} photoUrl={pl.photoUrl} />
+                <span className="status-name">
+                  {pl.name} {pl.id === user.id && <span className="muted">(você)</span>}
+                </span>
+                {done ? (
+                  <span className="badge badge-green">✓ {pl.predicted}/{pl.total}</span>
+                ) : (
+                  <span className="badge badge-yellow">{pl.predicted}/{pl.total}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="card">
         <h2>Jogos e palpites</h2>

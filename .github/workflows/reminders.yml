@@ -1,0 +1,19 @@
+name: Lembretes do bolão
+
+# Chama o endpoint de verificação a cada 15 minutos, garantindo que os lembretes
+# (palpites pendentes a cada 3h + 30 min antes de cada jogo) disparem de forma
+# confiável mesmo no plano grátis da Vercel (cujo cron roda só 1x/dia).
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar verificação de lembretes
+        run: |
+          curl -fsS -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://bolao-brasileirao-pi.vercel.app/api/cron/reminders"
