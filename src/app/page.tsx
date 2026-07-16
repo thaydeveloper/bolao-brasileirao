@@ -57,14 +57,22 @@ export default async function DashboardPage() {
   const roundRanking = currentRound ? await computeRoundRanking(currentRound.id) : [];
   const winners = lastFinished ? await getRoundWinners(lastFinished) : [];
 
-  // Jogos abertos da rodada vigente + meus palpites, para palpitar direto na home
-  const openMatches = currentRound
-    ? currentRound.matches.filter((m) => !m.finished && m.kickoff > now)
-    : [];
+  // Todas as rodadas com jogos abertos (vigente + próxima/atrasada), para palpitar na home
+  const openRounds = await prisma.round.findMany({
+    where: { canceled: false, matches: { some: { finished: false, kickoff: { gt: now } } } },
+    include: { matches: { orderBy: { kickoff: "asc" } } },
+  });
+  const nextOpenTime = (r: (typeof openRounds)[number]) =>
+    Math.min(...r.matches.filter((m) => !m.finished && m.kickoff > now).map((m) => m.kickoff.getTime()));
+  const palpitarRounds = openRounds
+    .sort((a, b) => nextOpenTime(a) - nextOpenTime(b))
+    .slice(0, 2)
+    .map((r) => ({ round: r, open: r.matches.filter((m) => !m.finished && m.kickoff > now) }));
+
   const myPredByMatch = new Map<number, { homeScore: number; awayScore: number }>();
-  if (currentRound && openMatches.length > 0) {
+  if (palpitarRounds.length > 0) {
     const myPreds = await prisma.prediction.findMany({
-      where: { userId: user.id, match: { roundId: currentRound.id } },
+      where: { userId: user.id, match: { roundId: { in: palpitarRounds.map((p) => p.round.id) } } },
       select: { matchId: true, homeScore: true, awayScore: true },
     });
     for (const p of myPreds) myPredByMatch.set(p.matchId, { homeScore: p.homeScore, awayScore: p.awayScore });
@@ -140,53 +148,59 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {currentRound && openMatches.length > 0 && (
-        <div className="card">
-          <div className="card-title">
-            <h2>⚽ Palpitar — Rodada {currentRound.number}</h2>
-            <Link href={`/rodadas/${currentRound.id}`} className="muted">
-              Ver rodada completa →
-            </Link>
+      {palpitarRounds.map(({ round, open }) => {
+        const atrasada = currentRound && round.id !== currentRound.id;
+        return (
+          <div className="card" key={round.id}>
+            <div className="card-title">
+              <h2>
+                ⚽ Palpitar — Rodada {round.number}{" "}
+                {atrasada && <span className="badge badge-yellow">jogos atrasados</span>}
+              </h2>
+              <Link href={`/rodadas/${round.id}`} className="muted">
+                Ver rodada completa →
+              </Link>
+            </div>
+            {open.map((match) => {
+              const mine = myPredByMatch.get(match.id);
+              return (
+                <div className="match" key={match.id}>
+                  <div className="match-header">
+                    <span>
+                      {dataCompletaBR.format(match.kickoff)}
+                      {" · fecha em "}
+                      <Countdown target={match.kickoff.toISOString()} className="countdown-inline" />
+                    </span>
+                    {mine ? (
+                      <span className="badge badge-green">✓ palpitado</span>
+                    ) : (
+                      <span className="badge badge-yellow">falta palpitar</span>
+                    )}
+                  </div>
+                  <div className="match-teams">
+                    <span className="team home">
+                      <span className="team-name">{match.homeTeam}</span>
+                      <TeamCrest url={match.homeCrest} name={match.homeTeam} size={26} />
+                    </span>
+                    <span className="score-final muted">vs</span>
+                    <span className="team away">
+                      <TeamCrest url={match.awayCrest} name={match.awayTeam} size={26} />
+                      <span className="team-name">{match.awayTeam}</span>
+                    </span>
+                  </div>
+                  <div className="match-footer">
+                    <PredictionForm
+                      matchId={match.id}
+                      defaultHome={mine?.homeScore ?? null}
+                      defaultAway={mine?.awayScore ?? null}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          {openMatches.map((match) => {
-            const mine = myPredByMatch.get(match.id);
-            return (
-              <div className="match" key={match.id}>
-                <div className="match-header">
-                  <span>
-                    {dataCompletaBR.format(match.kickoff)}
-                    {" · fecha em "}
-                    <Countdown target={match.kickoff.toISOString()} className="countdown-inline" />
-                  </span>
-                  {mine ? (
-                    <span className="badge badge-green">✓ palpitado</span>
-                  ) : (
-                    <span className="badge badge-yellow">falta palpitar</span>
-                  )}
-                </div>
-                <div className="match-teams">
-                  <span className="team home">
-                    <span className="team-name">{match.homeTeam}</span>
-                    <TeamCrest url={match.homeCrest} name={match.homeTeam} size={26} />
-                  </span>
-                  <span className="score-final muted">vs</span>
-                  <span className="team away">
-                    <TeamCrest url={match.awayCrest} name={match.awayTeam} size={26} />
-                    <span className="team-name">{match.awayTeam}</span>
-                  </span>
-                </div>
-                <div className="match-footer">
-                  <PredictionForm
-                    matchId={match.id}
-                    defaultHome={mine?.homeScore ?? null}
-                    defaultAway={mine?.awayScore ?? null}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+        );
+      })}
 
       {winners.length > 0 && lastFinished && (
         <div className="card winner-card">
