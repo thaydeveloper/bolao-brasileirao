@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { calcularPontos } from "@/lib/scoring";
 import { checkNewLeader, notifyRoundFinished } from "@/lib/notifications";
 import { getGeneralLeaders } from "@/lib/ranking";
+import { recomputeMatchPoints } from "@/lib/results";
 import { fetchMatches, FootballApiError } from "@/lib/football";
 import type { FormState } from "./auth";
 
@@ -190,16 +190,6 @@ export async function updateResultAction(_prev: FormState, formData: FormData): 
   revalidatePath("/ranking");
   revalidatePath("/");
   return {};
-}
-
-async function recomputeMatchPoints(matchId: number, result: { home: number; away: number } | null) {
-  const predictions = await prisma.prediction.findMany({ where: { matchId } });
-  for (const pred of predictions) {
-    const points = result
-      ? calcularPontos({ home: pred.homeScore, away: pred.awayScore }, result)
-      : null;
-    await prisma.prediction.update({ where: { id: pred.id }, data: { points } });
-  }
 }
 
 /** Reprocessa a pontuação de todos os jogos encerrados de uma rodada. */

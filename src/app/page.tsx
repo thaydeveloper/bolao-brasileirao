@@ -16,6 +16,7 @@ import PlayerLink from "@/components/PlayerLink";
 import WinnerMessageForm from "@/components/WinnerMessageForm";
 import PredictionForm from "@/components/PredictionForm";
 import TeamCrest from "@/components/TeamCrest";
+import LiveScores from "@/components/LiveScores";
 
 export const dynamic = "force-dynamic";
 
@@ -103,6 +104,9 @@ export default async function DashboardPage() {
           <p className="muted">Bem-vindo ao bolão do Brasileirão.</p>
         </div>
       </div>
+
+      {/* Ao vivo: só aparece quando há jogo em andamento (busca no cliente via /api/live) */}
+      <LiveScores />
 
       {currentRound && roundInfo ? (
         <div className="card">

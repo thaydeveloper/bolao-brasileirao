@@ -1,0 +1,19 @@
+name: Ao vivo do bolão
+
+# Aciona o sync de placares ao vivo, para que as notificações de gol/fim de jogo
+# cheguem mesmo sem ninguém com o app aberto. O endpoint é barato: sem jogo em
+# andamento, retorna sem chamar a API. Com a API-Football (cota 100/dia), o sync
+# respeita um cooldown de 3 min; 10 min aqui economiza cota quando ninguém assiste.
+# Quando alguém está com a tela aberta, o cliente atualiza a cada ~20s.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar sync ao vivo
+        run: |
+          curl -fsS "https://bolao-brasileirao-pi.vercel.app/api/live" -o /dev/null

@@ -812,3 +812,92 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   font-size: 0.85rem;
 }
 .rules-list strong { color: var(--text); }
+
+/* ---------- Ao vivo ---------- */
+.live-card {
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.06), rgba(34, 197, 94, 0.03));
+}
+.live-card .card-title h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.live-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6);
+  animation: live-pulse 1.4s infinite;
+}
+@keyframes live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+  70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+.live-match-row {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.live-match-row:first-of-type { border-top: none; }
+.live-match {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.live-team {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.live-team .team-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.live-team.home { justify-content: flex-end; text-align: right; }
+.live-team.away { justify-content: flex-start; text-align: left; }
+.live-score {
+  font-size: 1.35rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 0 4px;
+}
+.live-score .x { color: var(--text-muted); font-weight: 600; margin: 0 2px; }
+.live-tag {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 999px;
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+.live-tag.paused {
+  color: #fcd34d;
+  background: rgba(234, 179, 8, 0.14);
+  border-color: rgba(234, 179, 8, 0.4);
+}
+.live-pred {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.live-pred strong { color: var(--text); font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) {
+  .live-team .team-name { font-size: 0.85rem; }
+  .live-score { font-size: 1.2rem; }
+  .live-match { gap: 6px; }
+}

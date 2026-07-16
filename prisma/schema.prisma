@@ -92,6 +92,12 @@ model Match {
   homeScore   Int?
   awayScore   Int?
   finished    Boolean      @default(false)
+  // Placar ao vivo (independente do resultado oficial; só a finalização grava homeScore/awayScore)
+  liveStatus  String? // TIMED | IN_PLAY | PAUSED | FINISHED | SUSPENDED | POSTPONED
+  liveHome    Int?
+  liveAway    Int?
+  liveMinute  Int? // minuto de jogo informado pela API (pode vir nulo no plano grátis)
+  liveAt      DateTime? // última atualização vinda da API
   predictions Prediction[]
 }
 
@@ -113,7 +119,7 @@ model Prediction {
 model Notification {
   id        Int       @id @default(autoincrement())
   userId    Int
-  type      String // lembrete-rodada | lembrete-jogo | resultado-rodada | novo-lider
+  type      String // lembrete-rodada | lembrete-jogo | resultado-rodada | novo-lider | ao-vivo
   message   String
   dedupeKey String?
   readAt    DateTime?
@@ -121,4 +127,11 @@ model Notification {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, dedupeKey])
+}
+
+/** Chave-valor simples para estado interno (ex.: timestamp do último sync ao vivo). */
+model AppMeta {
+  key       String   @id
+  value     String?
+  updatedAt DateTime @updatedAt
 }

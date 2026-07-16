@@ -90,6 +90,78 @@ export async function fetchMatches(season: string): Promise<FootballMatch[]> {
     .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime());
 }
 
+// ---------- Ao vivo ----------
+
+/** Status que a API usa quando a bola está rolando (jogo em andamento ou intervalo). */
+export const LIVE_STATUSES = ["IN_PLAY", "PAUSED"] as const;
+
+export type LiveSnapshot = {
+  externalId: number;
+  status: string | null;
+  home: number | null;
+  away: number | null;
+  minute: number | null;
+};
+
+/** Normaliza o minuto de jogo da API (número, string "45", "45+2" ou nulo). */
+export function parseMinute(raw: any): number | null {
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string") {
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/**
+ * Extrai o placar CORRENTE de uma partida (durante o jogo, `score.fullTime`
+ * reflete o placar ao vivo na v4; ao terminar, vira o placar final). Função pura.
+ */
+export function mapMatchLive(raw: any): LiveSnapshot {
+  return {
+    externalId: raw.id,
+    status: raw.status ?? null,
+    home: raw.score?.fullTime?.home ?? null,
+    away: raw.score?.fullTime?.away ?? null,
+    minute: parseMinute(raw.minute),
+  };
+}
+
+export function isLiveStatus(status: string | null | undefined): boolean {
+  return status === "IN_PLAY" || status === "PAUSED";
+}
+
+/**
+ * Compara o snapshot anterior (o que temos no banco) com o atual (vindo da API) e
+ * decide quais eventos notificar. Pura e determinística — testada isoladamente.
+ *
+ * - started:  a bola passou a rolar (não estava rolando antes)
+ * - goal:     o placar total aumentou, e já tínhamos uma base para comparar
+ *             (na 1ª leitura do jogo não notifica, para não avisar gols antigos)
+ * - finished: a partida acabou agora (transição para FINISHED com placar definido)
+ */
+export function liveTransitions(
+  prev: LiveSnapshot,
+  cur: LiveSnapshot
+): { started: boolean; goal: boolean; finished: boolean } {
+  const total = (h: number | null, a: number | null) => (h ?? 0) + (a ?? 0);
+  const hadBaseline = prev.home !== null && prev.away !== null;
+  const hasCurrent = cur.home !== null && cur.away !== null;
+
+  const started = isLiveStatus(cur.status) && !isLiveStatus(prev.status);
+  const goal = hadBaseline && hasCurrent && total(cur.home, cur.away) > total(prev.home, prev.away);
+  const finished = cur.status === "FINISHED" && prev.status !== "FINISHED" && hasCurrent;
+
+  return { started, goal, finished };
+}
+
+/** Busca todas as partidas da temporada e devolve só os snapshots ao vivo (1 request). */
+export async function fetchLiveSnapshots(season: string): Promise<LiveSnapshot[]> {
+  const data = await api(`/competitions/${COMPETITION}/matches?season=${season}`, 0);
+  const matches: any[] = data.matches ?? [];
+  return matches.map(mapMatchLive);
+}
+
 // ---------- Tabela / classificação ----------
 
 export type StandingRow = {

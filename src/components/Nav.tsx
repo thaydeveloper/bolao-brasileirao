@@ -27,6 +27,7 @@ export default async function Nav() {
         </Link>
         <div className="nav-links">
           <Link href="/">Início</Link>
+          <Link href="/ao-vivo">Ao vivo</Link>
           <Link href="/rodadas">Rodadas</Link>
           <Link href="/tabela">Tabela</Link>
           <Link href="/ranking">Ranking</Link>
