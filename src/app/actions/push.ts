@@ -92,3 +92,51 @@ export async function sendReminderTestToMeAction(
   const nums = target.map((r) => r.number).join(" e ");
   return { ok: `Lembrete de teste enviado pra você (rodadas ${nums}) — veja o sininho 🔔 e o pop-up.` };
 }
+
+/**
+ * Cobra APENAS quem ainda não palpitou, citando os jogos específicos que faltam
+ * para cada um (nas rodadas vigente e próxima). Sem dedupe: o admin dispara quando
+ * quiser. Quem já completou não recebe nada.
+ */
+export async function nudgeNonPredictorsAction(
+  _prev: FormState,
+  _formData: FormData
+): Promise<FormState> {
+  await requireAdmin();
+  const now = new Date();
+
+  const rounds = await prisma.round.findMany({
+    where: { canceled: false, matches: { some: { finished: false, kickoff: { gt: now } } } },
+    include: { matches: { include: { predictions: { select: { userId: true } } } } },
+  });
+  if (rounds.length === 0) return { error: "Nenhuma rodada com jogos abertos no momento." };
+
+  const nextOpen = (r: (typeof rounds)[number]) =>
+    Math.min(...r.matches.filter((m) => !m.finished && m.kickoff > now).map((m) => m.kickoff.getTime()));
+  const target = rounds.sort((a, b) => nextOpen(a) - nextOpen(b)).slice(0, 2);
+
+  const openMatches = target
+    .flatMap((r) => r.matches.filter((m) => !m.finished && m.kickoff > now))
+    .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime());
+
+  const users = await prisma.user.findMany({ select: { id: true } });
+  let nudged = 0;
+
+  for (const u of users) {
+    const missing = openMatches.filter((m) => !m.predictions.some((p) => p.userId === u.id));
+    if (missing.length === 0) continue;
+    const names = missing.slice(0, 4).map((m) => `${m.homeTeam} x ${m.awayTeam}`);
+    const extra = missing.length > 4 ? ` e mais ${missing.length - 4}` : "";
+    await notify(
+      u.id,
+      "cobranca-palpite",
+      `Faltam seus palpites: ${names.join(", ")}${extra}. Não fique de fora! ⚽`,
+      undefined,
+      { title: "⏰ Você ainda não palpitou!", url: "/" }
+    );
+    nudged++;
+  }
+
+  if (nudged === 0) return { ok: "Todo mundo já palpitou! Ninguém para cobrar. 🎉" };
+  return { ok: `Cobrança enviada para ${nudged} participante(s) que ainda não palpitaram.` };
+}

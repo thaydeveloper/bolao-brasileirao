@@ -1,7 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
-import { sendAdminBroadcastAction, sendReminderTestToMeAction } from "@/app/actions/push";
+import {
+  sendAdminBroadcastAction,
+  sendReminderTestToMeAction,
+  nudgeNonPredictorsAction,
+} from "@/app/actions/push";
 import type { FormState } from "@/app/actions/auth";
 
 export default function AdminBroadcastForm() {
@@ -11,6 +15,10 @@ export default function AdminBroadcastForm() {
   );
   const [testState, testAction, testPending] = useActionState<FormState, FormData>(
     sendReminderTestToMeAction,
+    undefined
+  );
+  const [nudgeState, nudgeAction, nudgePending] = useActionState<FormState, FormData>(
+    nudgeNonPredictorsAction,
     undefined
   );
 
@@ -39,6 +47,22 @@ export default function AdminBroadcastForm() {
           {pending ? "Enviando..." : "Enviar para todos agora"}
         </button>
       </form>
+
+      <div className="winner-msg-form" style={{ marginTop: 16 }}>
+        <h3>🎯 Cobrar quem não palpitou</h3>
+        <p className="muted">
+          Manda o lembrete <strong>só para quem ainda não palpitou</strong>, citando os jogos
+          específicos que faltam para cada um (rodada vigente e próxima). Quem já completou não
+          recebe nada.
+        </p>
+        {nudgeState?.error && <div className="form-error">{nudgeState.error}</div>}
+        {nudgeState?.ok && <div className="form-success">{nudgeState.ok}</div>}
+        <form action={nudgeAction}>
+          <button className="btn" disabled={nudgePending}>
+            {nudgePending ? "Enviando..." : "Cobrar quem está devendo palpite"}
+          </button>
+        </form>
+      </div>
 
       <div className="winner-msg-form" style={{ marginTop: 16 }}>
         <h3>⏰ Testar lembrete de palpites (só pra você)</h3>

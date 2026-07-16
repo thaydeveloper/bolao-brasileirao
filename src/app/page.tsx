@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { checkReminders, checkPendingReminders, checkWinnerMessages } from "@/lib/notifications";
 import { computeGeneralRanking, computeRoundRanking, getRoundWinners } from "@/lib/ranking";
 import {
   dataCompletaBR,
@@ -23,45 +22,23 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const user = await requireUser();
 
-  // Dispara as verificações idempotentes (lembretes + recado do campeão) a cada carregamento
-  await checkReminders().catch(() => {});
-  await checkPendingReminders().catch(() => {});
-  await checkWinnerMessages().catch(() => {});
+  // Obs.: as verificações de lembrete/recado NÃO rodam mais aqui (deixavam a home
+  // lenta por causa dos envios de push). Rodam pelo cron: Vercel (diário) e
+  // GitHub Actions (a cada 15 min via /api/cron/reminders).
 
-  const [currentRound, lastFinished, generalRanking] = await Promise.all([
+  const now = new Date();
+
+  // Lote 1 — consultas independentes, em paralelo
+  const [currentRound, lastFinished, generalRanking, openRounds] = await Promise.all([
     getCurrentRound(),
     getLastFinishedRound(),
     computeGeneralRanking(),
+    prisma.round.findMany({
+      where: { canceled: false, matches: { some: { finished: false, kickoff: { gt: now } } } },
+      include: { matches: { orderBy: { kickoff: "asc" } } },
+    }),
   ]);
 
-  const now = new Date();
-  let roundInfo: {
-    kickoff: Date | null;
-    remainingGames: number;
-    myPredictions: number;
-    totalGames: number;
-  } | null = null;
-
-  if (currentRound) {
-    const myPreds = await prisma.prediction.count({
-      where: { userId: user.id, match: { roundId: currentRound.id } },
-    });
-    roundInfo = {
-      kickoff: firstKickoff(currentRound),
-      remainingGames: currentRound.matches.filter((m) => !m.finished).length,
-      myPredictions: myPreds,
-      totalGames: currentRound.matches.length,
-    };
-  }
-
-  const roundRanking = currentRound ? await computeRoundRanking(currentRound.id) : [];
-  const winners = lastFinished ? await getRoundWinners(lastFinished) : [];
-
-  // Todas as rodadas com jogos abertos (vigente + próxima/atrasada), para palpitar na home
-  const openRounds = await prisma.round.findMany({
-    where: { canceled: false, matches: { some: { finished: false, kickoff: { gt: now } } } },
-    include: { matches: { orderBy: { kickoff: "asc" } } },
-  });
   const nextOpenTime = (r: (typeof openRounds)[number]) =>
     Math.min(...r.matches.filter((m) => !m.finished && m.kickoff > now).map((m) => m.kickoff.getTime()));
   const palpitarRounds = openRounds
@@ -69,14 +46,43 @@ export default async function DashboardPage() {
     .slice(0, 2)
     .map((r) => ({ round: r, open: r.matches.filter((m) => !m.finished && m.kickoff > now) }));
 
+  // Lote 2 — depende do lote 1, também em paralelo
+  const [roundRanking, winners, myPredCount, myPreds] = await Promise.all([
+    currentRound ? computeRoundRanking(currentRound.id) : Promise.resolve([]),
+    lastFinished ? getRoundWinners(lastFinished) : Promise.resolve([]),
+    currentRound
+      ? prisma.prediction.count({ where: { userId: user.id, match: { roundId: currentRound.id } } })
+      : Promise.resolve(0),
+    palpitarRounds.length > 0
+      ? prisma.prediction.findMany({
+          where: { userId: user.id, match: { roundId: { in: palpitarRounds.map((p) => p.round.id) } } },
+          select: { matchId: true, homeScore: true, awayScore: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const roundInfo = currentRound
+    ? {
+        kickoff: firstKickoff(currentRound),
+        remainingGames: currentRound.matches.filter((m) => !m.finished).length,
+        myPredictions: myPredCount,
+        totalGames: currentRound.matches.length,
+      }
+    : null;
+
   const myPredByMatch = new Map<number, { homeScore: number; awayScore: number }>();
-  if (palpitarRounds.length > 0) {
-    const myPreds = await prisma.prediction.findMany({
-      where: { userId: user.id, match: { roundId: { in: palpitarRounds.map((p) => p.round.id) } } },
-      select: { matchId: true, homeScore: true, awayScore: true },
-    });
-    for (const p of myPreds) myPredByMatch.set(p.matchId, { homeScore: p.homeScore, awayScore: p.awayScore });
-  }
+  for (const p of myPreds) myPredByMatch.set(p.matchId, { homeScore: p.homeScore, awayScore: p.awayScore });
+
+  // Lista única de jogos abertos, do mais próximo de acontecer para o mais distante
+  const palpitarMatches = palpitarRounds
+    .flatMap(({ round, open }) =>
+      open.map((m) => ({
+        match: m,
+        roundNumber: round.number,
+        atrasada: currentRound ? round.id !== currentRound.id : false,
+      }))
+    )
+    .sort((a, b) => a.match.kickoff.getTime() - b.match.kickoff.getTime());
 
   // Recado do campeão: janela aberta até o início da próxima rodada.
   // .catch: tolera o intervalo entre o deploy e o `db push` da tabela RoundMessage.
@@ -148,59 +154,52 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {palpitarRounds.map(({ round, open }) => {
-        const atrasada = currentRound && round.id !== currentRound.id;
-        return (
-          <div className="card" key={round.id}>
-            <div className="card-title">
-              <h2>
-                ⚽ Palpitar — Rodada {round.number}{" "}
-                {atrasada && <span className="badge badge-yellow">jogos atrasados</span>}
-              </h2>
-              <Link href={`/rodadas/${round.id}`} className="muted">
-                Ver rodada completa →
-              </Link>
-            </div>
-            {open.map((match) => {
-              const mine = myPredByMatch.get(match.id);
-              return (
-                <div className="match" key={match.id}>
-                  <div className="match-header">
-                    <span>
-                      {dataCompletaBR.format(match.kickoff)}
-                      {" · fecha em "}
-                      <Countdown target={match.kickoff.toISOString()} className="countdown-inline" />
-                    </span>
-                    {mine ? (
-                      <span className="badge badge-green">✓ palpitado</span>
-                    ) : (
-                      <span className="badge badge-yellow">falta palpitar</span>
-                    )}
-                  </div>
-                  <div className="match-teams">
-                    <span className="team home">
-                      <span className="team-name">{match.homeTeam}</span>
-                      <TeamCrest url={match.homeCrest} name={match.homeTeam} size={26} />
-                    </span>
-                    <span className="score-final muted">vs</span>
-                    <span className="team away">
-                      <TeamCrest url={match.awayCrest} name={match.awayTeam} size={26} />
-                      <span className="team-name">{match.awayTeam}</span>
-                    </span>
-                  </div>
-                  <div className="match-footer">
-                    <PredictionForm
-                      matchId={match.id}
-                      defaultHome={mine?.homeScore ?? null}
-                      defaultAway={mine?.awayScore ?? null}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+      {palpitarMatches.length > 0 && (
+        <div className="card">
+          <div className="card-title">
+            <h2>⚽ Palpitar — próximos jogos</h2>
           </div>
-        );
-      })}
+          {palpitarMatches.map(({ match, roundNumber, atrasada }) => {
+            const mine = myPredByMatch.get(match.id);
+            return (
+              <div className="match" key={match.id}>
+                <div className="match-header">
+                  <span>
+                    <span className="badge badge-gray">R{roundNumber}</span>
+                    {atrasada && <span className="badge badge-yellow"> atrasado</span>}{" "}
+                    {dataCompletaBR.format(match.kickoff)}
+                    {" · fecha em "}
+                    <Countdown target={match.kickoff.toISOString()} className="countdown-inline" />
+                  </span>
+                  {mine ? (
+                    <span className="badge badge-green">✓ palpitado</span>
+                  ) : (
+                    <span className="badge badge-yellow">falta palpitar</span>
+                  )}
+                </div>
+                <div className="match-teams">
+                  <span className="team home">
+                    <span className="team-name">{match.homeTeam}</span>
+                    <TeamCrest url={match.homeCrest} name={match.homeTeam} size={26} />
+                  </span>
+                  <span className="score-final muted">vs</span>
+                  <span className="team away">
+                    <TeamCrest url={match.awayCrest} name={match.awayTeam} size={26} />
+                    <span className="team-name">{match.awayTeam}</span>
+                  </span>
+                </div>
+                <div className="match-footer">
+                  <PredictionForm
+                    matchId={match.id}
+                    defaultHome={mine?.homeScore ?? null}
+                    defaultAway={mine?.awayScore ?? null}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {winners.length > 0 && lastFinished && (
         <div className="card winner-card">
