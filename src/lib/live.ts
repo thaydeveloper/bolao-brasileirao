@@ -191,7 +191,7 @@ export async function syncLiveMatches(opts?: { force?: boolean }): Promise<LiveM
   const notifyAll = (message: string, dedupeKey: string) =>
     Promise.all(
       users.map((u) =>
-        notify(u.id, "ao-vivo", message, dedupeKey, { title: "Ao vivo ⚽", url: "/ao-vivo" })
+        notify(u.id, "ao-vivo", message, dedupeKey, { title: "Ao vivo ⚽", url: "/" })
       )
     );
 

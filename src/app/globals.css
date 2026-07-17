@@ -886,6 +886,13 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   background: rgba(234, 179, 8, 0.14);
   border-color: rgba(234, 179, 8, 0.4);
 }
+/* Placar ao vivo em destaque dentro do card do palpite */
+.live-score-big {
+  color: #f87171;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+.live-score-big .x { color: var(--text-muted); font-weight: 600; margin: 0 3px; }
 .live-pred {
   display: flex;
   align-items: center;

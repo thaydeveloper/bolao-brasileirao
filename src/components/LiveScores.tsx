@@ -93,12 +93,12 @@ export default function LiveScores({
   }
 
   return (
-    <div className="card live-card">
+    <div className="card">
       <div className="card-title">
         <h2>
-          <span className="live-dot" /> Ao vivo
+          <span className="live-dot" /> Ao vivo — seus palpites
         </h2>
-        <span className="muted">atualiza automaticamente</span>
+        <span className="muted">atualiza sozinho</span>
       </div>
       {matches.map((m) => {
         const acertando =
@@ -106,34 +106,47 @@ export default function LiveScores({
           m.myPrediction.home === m.homeScore &&
           m.myPrediction.away === m.awayScore;
         return (
-          <div className="live-match-row" key={m.id}>
-            <div className="live-match">
-              <span className="badge badge-gray">R{m.roundNumber}</span>
-              <span className="live-team home">
-                <span className="team-name">{m.homeTeam}</span>
-                <TeamCrest url={m.homeCrest} name={m.homeTeam} size={24} />
+          <div className="match" key={m.id}>
+            <div className="match-header">
+              <span>
+                <span className="badge badge-gray">R{m.roundNumber}</span>{" "}
+                <span className={`live-tag ${m.status === "PAUSED" ? "paused" : ""}`}>
+                  <MatchClock status={m.status} minute={m.minute} kickoff={m.kickoff} />
+                </span>
               </span>
-              <span className="live-score">
+              {m.myPrediction ? (
+                acertando ? (
+                  <span className="badge badge-green">acertando ✓</span>
+                ) : (
+                  <span className="badge badge-gray">no momento não</span>
+                )
+              ) : (
+                <span className="badge badge-yellow">sem palpite</span>
+              )}
+            </div>
+
+            <div className="match-teams">
+              <span className="team home">
+                <span className="team-name">{m.homeTeam}</span>
+                <TeamCrest url={m.homeCrest} name={m.homeTeam} size={26} />
+              </span>
+              <span className="score-final live-score-big">
                 {m.homeScore} <span className="x">×</span> {m.awayScore}
               </span>
-              <span className="live-team away">
-                <TeamCrest url={m.awayCrest} name={m.awayTeam} size={24} />
+              <span className="team away">
+                <TeamCrest url={m.awayCrest} name={m.awayTeam} size={26} />
                 <span className="team-name">{m.awayTeam}</span>
               </span>
-              <span className={`live-tag ${m.status === "PAUSED" ? "paused" : ""}`}>
-                <MatchClock status={m.status} minute={m.minute} kickoff={m.kickoff} />
-              </span>
             </div>
-            <div className="live-pred">
+
+            <div className="match-footer">
               {m.myPrediction ? (
-                <>
-                  Seu palpite: <strong>{m.myPrediction.home} × {m.myPrediction.away}</strong>
-                  {acertando ? (
-                    <span className="badge badge-green">acertando ✓</span>
-                  ) : (
-                    <span className="badge badge-gray">no momento não</span>
-                  )}
-                </>
+                <span>
+                  Seu palpite:{" "}
+                  <strong>
+                    {m.myPrediction.home} × {m.myPrediction.away}
+                  </strong>
+                </span>
               ) : (
                 <span className="muted">Você não palpitou neste jogo.</span>
               )}
