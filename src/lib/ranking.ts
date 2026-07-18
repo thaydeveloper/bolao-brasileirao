@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import { firstKickoff, roundStatus, type RoundWithMatches } from "./rounds";
+import { calcularPontos } from "./scoring";
 
 export type RankingUser = {
   id: number;
@@ -48,6 +49,73 @@ export async function computeRoundRanking(roundId: number): Promise<RoundRanking
     entry.count += 1;
     if (p.points === 40) entry.exact += 1;
     byUser.set(p.userId, entry);
+  }
+
+  return players
+    .map((user) => {
+      const e = byUser.get(user.id);
+      return {
+        user,
+        points: e?.points ?? 0,
+        exactCount: e?.exact ?? 0,
+        predictedCount: e?.count ?? 0,
+      };
+    })
+    .sort((a, b) => b.points - a.points || b.exactCount - a.exactCount || a.user.name.localeCompare(b.user.name));
+}
+
+/**
+ * Ranking AO VIVO das rodadas informadas: pontos provisórios calculados com o
+ * placar atual — resultado oficial para jogos encerrados e placar ao vivo para
+ * jogos em andamento (IN_PLAY/PAUSED). Muda em tempo real conforme os gols saem.
+ */
+export async function computeLiveRanking(roundIds: number[]): Promise<RoundRankingEntry[]> {
+  if (roundIds.length === 0) return [];
+  const [players, matches] = await Promise.all([
+    getAllPlayers(),
+    prisma.match.findMany({
+      where: { roundId: { in: roundIds } },
+      select: {
+        finished: true,
+        homeScore: true,
+        awayScore: true,
+        liveStatus: true,
+        liveHome: true,
+        liveAway: true,
+        predictions: { select: { userId: true, homeScore: true, awayScore: true, points: true } },
+      },
+    }),
+  ]);
+
+  const byUser = new Map<number, { points: number; exact: number; count: number }>();
+  const bump = (userId: number, pts: number) => {
+    const e = byUser.get(userId) ?? { points: 0, exact: 0, count: 0 };
+    e.points += pts;
+    e.count += 1;
+    if (pts === 40) e.exact += 1;
+    byUser.set(userId, e);
+  };
+
+  for (const m of matches) {
+    let result: { home: number; away: number } | null = null;
+    if (m.finished && m.homeScore !== null && m.awayScore !== null) {
+      result = { home: m.homeScore, away: m.awayScore };
+    } else if (
+      (m.liveStatus === "IN_PLAY" || m.liveStatus === "PAUSED") &&
+      m.liveHome !== null &&
+      m.liveAway !== null
+    ) {
+      result = { home: m.liveHome, away: m.liveAway };
+    }
+    if (!result) continue; // jogo ainda não começou → não pontua
+
+    for (const p of m.predictions) {
+      const pts =
+        m.finished && p.points !== null
+          ? p.points
+          : calcularPontos({ home: p.homeScore, away: p.awayScore }, result);
+      bump(p.userId, pts);
+    }
   }
 
   return players

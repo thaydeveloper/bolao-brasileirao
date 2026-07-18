@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import TeamCrest from "./TeamCrest";
+import Avatar from "./Avatar";
 
 type LiveMatch = {
   id: number;
@@ -18,6 +19,17 @@ type LiveMatch = {
   liveAt: string | null;
   myPrediction: { home: number; away: number } | null;
 };
+
+type LiveRankingEntry = {
+  id: number;
+  name: string;
+  photoUrl: string | null;
+  points: number;
+  exact: number;
+  isMe: boolean;
+};
+
+type LiveRanking = { roundNumbers: number[]; entries: LiveRankingEntry[] } | null;
 
 /**
  * Tempo de jogo: usa o minuto da API quando disponível; senão estima a partir do
@@ -53,6 +65,7 @@ export default function LiveScores({
   showEmpty?: boolean;
 }) {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
+  const [ranking, setRanking] = useState<LiveRanking>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -63,6 +76,7 @@ export default function LiveScores({
         const data = await res.json();
         if (alive) {
           setMatches(Array.isArray(data.matches) ? data.matches : []);
+          setRanking(data.ranking ?? null);
           setLoaded(true);
         }
       } catch {
@@ -93,6 +107,7 @@ export default function LiveScores({
   }
 
   return (
+    <>
     <div className="card">
       <div className="card-title">
         <h2>
@@ -155,5 +170,52 @@ export default function LiveScores({
         );
       })}
     </div>
+
+    {ranking && ranking.entries.length > 0 && (
+      <div className="card">
+        <div className="card-title">
+          <h2>
+            <span className="live-dot" /> Ranking ao vivo
+            {ranking.roundNumbers.length > 0 && (
+              <span className="muted"> — rodada {ranking.roundNumbers.join(" e ")}</span>
+            )}
+          </h2>
+          <span className="muted">pontos provisórios</span>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style={{ width: 30 }}>#</th>
+                <th>Jogador</th>
+                <th className="num">Exatos</th>
+                <th className="num">Pontos</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ranking.entries.map((e, i) => (
+                <tr key={e.id} className={e.isMe ? "row-me" : ""}>
+                  <td>
+                    <span className={`pos ${i < 3 ? `pos-${i + 1}` : ""}`}>{i + 1}</span>
+                  </td>
+                  <td>
+                    <span className="player-cell">
+                      <Avatar name={e.name} photoUrl={e.photoUrl} />
+                      {e.name}
+                    </span>
+                  </td>
+                  <td className="num">{e.exact}</td>
+                  <td className="num points-badge">{e.points}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="muted" style={{ marginTop: 10 }}>
+          Atualiza a cada gol — os pontos se confirmam quando cada jogo termina.
+        </p>
+      </div>
+    )}
+    </>
   );
 }
