@@ -9,6 +9,8 @@ import Avatar from "@/components/Avatar";
 import TeamCrest from "@/components/TeamCrest";
 import PlayerLink from "@/components/PlayerLink";
 import Countdown from "@/components/Countdown";
+import AutoRefresh from "@/components/AutoRefresh";
+import { calcularPontos } from "@/lib/scoring";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +21,47 @@ const BADGE: Record<string, string> = {
   cancelada: "badge-red",
 };
 
-function pointsBadge(points: number | null) {
+type Liveish = {
+  finished: boolean;
+  homeScore: number | null;
+  awayScore: number | null;
+  liveStatus: string | null;
+  liveHome: number | null;
+  liveAway: number | null;
+};
+
+function isMatchLive(m: Liveish): boolean {
+  return !m.finished && (m.liveStatus === "IN_PLAY" || m.liveStatus === "PAUSED");
+}
+
+/** Resultado efetivo do jogo: oficial se encerrado, ao vivo se em andamento, senão nulo. */
+function matchResult(m: Liveish): { home: number; away: number } | null {
+  if (m.finished && m.homeScore !== null && m.awayScore !== null) return { home: m.homeScore, away: m.awayScore };
+  if (isMatchLive(m) && m.liveHome !== null && m.liveAway !== null) return { home: m.liveHome, away: m.liveAway };
+  return null;
+}
+
+function pointsBadge(points: number | null, live = false) {
   if (points === null) return null;
   const cls = points >= 40 ? "badge-green" : points > 0 ? "badge-blue" : "badge-red";
-  return <span className={`badge ${cls} points-badge`}>+{points} pts</span>;
+  return (
+    <span className={`badge ${cls} points-badge`}>
+      {live ? "~" : "+"}
+      {points} pts{live ? " · ao vivo" : ""}
+    </span>
+  );
+}
+
+/** Pontos que um palpite está fazendo AGORA (provisório se o jogo estiver rolando). */
+function predPointsBadge(pred: { homeScore: number; awayScore: number; points: number | null }, m: Liveish) {
+  const result = matchResult(m);
+  if (!result) return null;
+  const live = !m.finished;
+  const pts =
+    m.finished && pred.points !== null
+      ? pred.points
+      : calcularPontos({ home: pred.homeScore, away: pred.awayScore }, result);
+  return pointsBadge(pts, live);
 }
 
 export default async function RodadaPage({ params }: { params: Promise<{ id: string }> }) {
@@ -47,6 +86,7 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
   const status = roundStatus(round);
   const ranking = await computeRoundRanking(round.id);
   const winners = winnersFromRanking(ranking, round);
+  const hasLive = round.matches.some((m) => isMatchLive(m));
 
   // Quadro "quem já palpitou" — só o progresso (X/N), nunca os placares
   const allPlayers = await prisma.user.findMany({
@@ -76,6 +116,7 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
 
   return (
     <main>
+      {hasLive && <AutoRefresh />}
       <div className="section-header">
         <div>
           <h1>Rodada {round.number}</h1>
@@ -174,6 +215,12 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
                 </span>
                 {match.finished ? (
                   <span className="badge badge-gray">Encerrado</span>
+                ) : isMatchLive(match) ? (
+                  <span className="live-tag">
+                    {match.liveStatus === "PAUSED"
+                      ? "Intervalo"
+                      : `AO VIVO${match.liveMinute != null ? ` · ${match.liveMinute}'` : ""}`}
+                  </span>
                 ) : locked ? (
                   <span className="badge badge-yellow">🔒 Palpite bloqueado</span>
                 ) : (
@@ -189,6 +236,10 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
                 {match.finished ? (
                   <span className="score-final">
                     {match.homeScore} x {match.awayScore}
+                  </span>
+                ) : isMatchLive(match) ? (
+                  <span className="score-final live-score-big">
+                    {match.liveHome ?? 0} <span className="x">×</span> {match.liveAway ?? 0}
                   </span>
                 ) : (
                   <span className="score-final muted">vs</span>
@@ -216,7 +267,7 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
                     ) : (
                       <span className="badge badge-red">Não palpitou</span>
                     )}{" "}
-                    {mine && pointsBadge(mine.points)}
+                    {mine && predPointsBadge(mine, match)}
                   </div>
                 )}
               </div>
@@ -240,7 +291,7 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
                           <td className="num">
                             {p.homeScore} x {p.awayScore}
                           </td>
-                          <td className="num">{pointsBadge(p.points)}</td>
+                          <td className="num">{predPointsBadge(p, match)}</td>
                         </tr>
                       ))}
                     </tbody>
