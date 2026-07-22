@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { checkReminders, checkPendingReminders, checkWinnerMessages } from "@/lib/notifications";
-import { syncLiveMatches } from "@/lib/live";
+import { syncLiveMatches, reconcileFinishedMatches } from "@/lib/live";
 
 /**
  * Endpoint para agendadores (Vercel Cron, Task Scheduler, GitHub Actions...).
@@ -25,5 +25,7 @@ export async function GET(request: NextRequest) {
   await checkWinnerMessages().catch(() => {});
   // Placares/gols ao vivo (respeita o cooldown para não estourar a cota da API)
   await syncLiveMatches().catch(() => {});
-  return NextResponse.json({ ok: true, checkedAt: new Date().toISOString() });
+  // Rede de segurança: finaliza/repontua jogos encerrados que escaparam do ao vivo
+  const reconciled = await reconcileFinishedMatches().catch(() => 0);
+  return NextResponse.json({ ok: true, reconciled, checkedAt: new Date().toISOString() });
 }

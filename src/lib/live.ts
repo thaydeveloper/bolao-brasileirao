@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import {
   fetchLiveSnapshots,
+  fetchMatches,
   isConfigured as isFootballDataConfigured,
   liveTransitions,
   type LiveSnapshot,
@@ -19,6 +20,7 @@ const COOLDOWN_APIFOOTBALL_MS = 3 * 60 * 1000;
 const COOLDOWN_FOOTBALLDATA_MS = 20 * 1000;
 const CANDIDATE_WINDOW_MS = 6 * 60 * 60 * 1000; // jogo "possivelmente ao vivo": começou nas últimas 6h
 const FINALIZE_MIN_AGE_MS = 100 * 60 * 1000; // só finaliza "por ausência" após 100 min do kickoff
+const RECONCILE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000; // reconciliação: jogos iniciados nos últimos 14 dias
 const SYNC_KEY = "liveSync";
 
 type Candidate = {
@@ -281,4 +283,86 @@ export async function syncLiveMatches(opts?: { force?: boolean }): Promise<LiveM
   if (finishedRoundIds.size > 0) await checkNewLeader(previousLeaders);
 
   return getLiveMatches(now);
+}
+
+/**
+ * Rede de segurança: finaliza jogos que já terminaram mas escaparam da janela do
+ * ao vivo (API atrasou o status FINISHED, cota estourou, ninguém abriu o app dentro
+ * das 6h após o início). Busca o placar OFICIAL da temporada no football-data
+ * (independente de qual provedor faz o ao vivo) e, para cada jogo pendente com
+ * resultado disponível, grava o placar e repontua os palpites — o mesmo efeito da
+ * finalização automática, só que sem depender da janela de candidatos.
+ *
+ * Idempotente e barato: sem jogo pendente → sem chamada à API; 1 request por
+ * temporada. Seguro para rodar no cron (a cada ~15 min). Devolve quantos finalizou.
+ */
+export async function reconcileFinishedMatches(now = new Date()): Promise<number> {
+  if (!isFootballDataConfigured()) return 0;
+
+  const since = new Date(now.getTime() - RECONCILE_WINDOW_MS);
+  const pending = await prisma.match.findMany({
+    where: {
+      finished: false,
+      externalId: { not: null },
+      kickoff: { lte: now, gte: since },
+    },
+    select: {
+      id: true,
+      roundId: true,
+      externalId: true,
+      round: { select: { number: true, season: true } },
+    },
+  });
+  if (pending.length === 0) return 0;
+
+  // 1 request por temporada → mapa externalId → placar oficial (só jogos encerrados)
+  const official = new Map<number, { home: number; away: number }>();
+  for (const season of new Set(pending.map((p) => p.round.season))) {
+    let matches;
+    try {
+      matches = await fetchMatches(season);
+    } catch {
+      continue; // API indisponível/cota: tenta de novo na próxima execução do cron
+    }
+    for (const m of matches) {
+      if (m.finished && m.homeScore !== null && m.awayScore !== null) {
+        official.set(m.externalId, { home: m.homeScore, away: m.awayScore });
+      }
+    }
+  }
+
+  const previousLeaders = await getGeneralLeaders();
+  const finishedRoundIds = new Set<number>();
+  let finalized = 0;
+
+  for (const p of pending) {
+    const result = p.externalId != null ? official.get(p.externalId) : undefined;
+    if (!result) continue;
+    await prisma.match.update({
+      where: { id: p.id },
+      data: {
+        homeScore: result.home,
+        awayScore: result.away,
+        finished: true,
+        liveStatus: "FINISHED",
+        liveHome: result.home,
+        liveAway: result.away,
+        liveAt: now,
+      },
+    });
+    await recomputeMatchPoints(p.id, result);
+    finishedRoundIds.add(p.roundId);
+    finalized++;
+  }
+
+  for (const roundId of finishedRoundIds) {
+    const roundMatches = await prisma.match.findMany({ where: { roundId } });
+    if (roundMatches.length > 0 && roundMatches.every((x) => x.finished)) {
+      const number = pending.find((p) => p.roundId === roundId)?.round.number ?? 0;
+      await notifyRoundFinished(roundId, number);
+    }
+  }
+  if (finalized > 0) await checkNewLeader(previousLeaders);
+
+  return finalized;
 }
