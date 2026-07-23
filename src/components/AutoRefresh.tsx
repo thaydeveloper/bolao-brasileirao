@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
  * a página "ao vivo" durante jogos em andamento, atualizando placares e pontos
  * provisórios sem o usuário recarregar. Também atualiza ao voltar o foco na aba.
  */
-export default function AutoRefresh({ intervalMs = 20000 }: { intervalMs?: number }) {
+export default function AutoRefresh({ intervalMs = 12000 }: { intervalMs?: number }) {
   const router = useRouter();
   useEffect(() => {
     const id = setInterval(() => router.refresh(), intervalMs);

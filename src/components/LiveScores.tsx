@@ -58,7 +58,7 @@ function MatchClock({
 }
 
 export default function LiveScores({
-  pollMs = 15000,
+  pollMs = 10000,
   showEmpty = false,
 }: {
   pollMs?: number;

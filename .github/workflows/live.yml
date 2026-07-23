@@ -5,7 +5,7 @@ name: Ao vivo do bolão
 # andamento, retorna sem chamar a API. Com o football-data (10 req/min), o sync
 # respeita um cooldown de 12s; a cada 5 min aqui deixa o push de gol chegar mais
 # rápido quando ninguém está com o app aberto (5 min é o mínimo do cron do GitHub).
-# Quando alguém está com a tela aberta, o cliente atualiza a cada ~15s.
+# Quando alguém está com a tela aberta, o cliente atualiza a cada ~10s.
 on:
   schedule:
     - cron: "*/5 * * * *"
