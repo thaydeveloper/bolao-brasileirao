@@ -11,6 +11,7 @@ import PlayerLink from "@/components/PlayerLink";
 import Countdown from "@/components/Countdown";
 import AutoRefresh from "@/components/AutoRefresh";
 import { calcularPontos } from "@/lib/scoring";
+import { syncLiveMatches } from "@/lib/live";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +68,11 @@ function predPointsBadge(pred: { homeScore: number; awayScore: number; points: n
 export default async function RodadaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireUser();
+
+  // Atualiza os placares ao vivo antes de renderizar (throttled: sem jogo em
+  // andamento não chama a API). Garante frescor mesmo quem está só nesta página,
+  // que antes dependia do cron para ver gols/placares.
+  await syncLiveMatches().catch(() => {});
 
   const round = await prisma.round.findUnique({
     where: { id: Number(id) },

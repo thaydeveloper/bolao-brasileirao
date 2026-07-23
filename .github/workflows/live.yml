@@ -2,12 +2,13 @@ name: Ao vivo do bolão
 
 # Aciona o sync de placares ao vivo, para que as notificações de gol/fim de jogo
 # cheguem mesmo sem ninguém com o app aberto. O endpoint é barato: sem jogo em
-# andamento, retorna sem chamar a API. Com a API-Football (cota 100/dia), o sync
-# respeita um cooldown de 3 min; 10 min aqui economiza cota quando ninguém assiste.
-# Quando alguém está com a tela aberta, o cliente atualiza a cada ~20s.
+# andamento, retorna sem chamar a API. Com o football-data (10 req/min), o sync
+# respeita um cooldown de 12s; a cada 5 min aqui deixa o push de gol chegar mais
+# rápido quando ninguém está com o app aberto (5 min é o mínimo do cron do GitHub).
+# Quando alguém está com a tela aberta, o cliente atualiza a cada ~15s.
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch: {}
 
 jobs:

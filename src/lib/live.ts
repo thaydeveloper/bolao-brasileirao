@@ -17,7 +17,7 @@ import { recomputeMatchPoints } from "./results";
 
 // Cota: API-Football grátis = 100 req/dia → cooldown alto. football-data = 10 req/min → baixo.
 const COOLDOWN_APIFOOTBALL_MS = 3 * 60 * 1000;
-const COOLDOWN_FOOTBALLDATA_MS = 20 * 1000;
+const COOLDOWN_FOOTBALLDATA_MS = 12 * 1000; // cooldown global; football-data grátis = 10 req/min → 12s ≈ 5/min (seguro)
 const CANDIDATE_WINDOW_MS = 6 * 60 * 60 * 1000; // jogo "possivelmente ao vivo": começou nas últimas 6h
 const FINALIZE_MIN_AGE_MS = 100 * 60 * 1000; // só finaliza "por ausência" após 100 min do kickoff
 const RECONCILE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000; // reconciliação: jogos iniciados nos últimos 14 dias
