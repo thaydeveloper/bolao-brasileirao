@@ -82,8 +82,11 @@ export async function getLiveMatches(now = new Date()): Promise<LiveMatchView[]>
 }
 
 function activeProvider(): "apifootball" | "footballdata" | null {
-  if (isApiFootballConfigured()) return "apifootball";
+  // football-data primeiro: cobre a Série A da temporada ATUAL no plano grátis.
+  // O plano grátis da API-Football não serve fixtures da temporada corrente
+  // (retorna vazio), então só a usamos se o football-data não estiver configurado.
   if (isFootballDataConfigured()) return "footballdata";
+  if (isApiFootballConfigured()) return "apifootball";
   return null;
 }
 

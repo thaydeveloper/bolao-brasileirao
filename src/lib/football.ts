@@ -114,13 +114,24 @@ export function parseMinute(raw: any): number | null {
 }
 
 /**
+ * Normaliza o status ao vivo da football-data. A API às vezes devolve "LIVE"
+ * (em vez de "IN_PLAY") quando a bola está rolando; tratamos como IN_PLAY para
+ * que a exibição e as transições reconheçam o jogo como ao vivo.
+ */
+export function normalizeLiveStatus(status: string | null | undefined): string | null {
+  if (!status) return null;
+  if (status === "LIVE") return "IN_PLAY";
+  return status;
+}
+
+/**
  * Extrai o placar CORRENTE de uma partida (durante o jogo, `score.fullTime`
  * reflete o placar ao vivo na v4; ao terminar, vira o placar final). Função pura.
  */
 export function mapMatchLive(raw: any): LiveSnapshot {
   return {
     externalId: raw.id,
-    status: raw.status ?? null,
+    status: normalizeLiveStatus(raw.status),
     home: raw.score?.fullTime?.home ?? null,
     away: raw.score?.fullTime?.away ?? null,
     minute: parseMinute(raw.minute),
