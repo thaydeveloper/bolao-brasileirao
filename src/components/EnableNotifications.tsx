@@ -32,7 +32,17 @@ export default function EnableNotifications() {
     }
     navigator.serviceWorker.ready
       .then((reg) => reg.pushManager.getSubscription())
-      .then((sub) => setStatus(sub ? "on" : "off"))
+      .then(async (sub) => {
+        if (sub) {
+          // Re-sincroniza a inscrição com o servidor (idempotente). Cobre o caso de
+          // o navegador ter a inscrição mas o servidor tê-la perdido / nunca recebido
+          // (falha na 1ª ativação), comum em aparelhos com restrição agressiva.
+          await subscribePushAction(sub.toJSON() as any).catch(() => {});
+          setStatus("on");
+        } else {
+          setStatus("off");
+        }
+      })
       .catch(() => setStatus("off"));
   }, []);
 
@@ -113,9 +123,18 @@ export default function EnableNotifications() {
           <p className="form-success" style={{ marginBottom: 10 }}>
             🔔 Notificações ativadas neste dispositivo.
           </p>
-          <button className="btn btn-secondary btn-sm" onClick={disable}>
-            Desativar notificações
-          </button>
+          <p className="muted" style={{ marginBottom: 10 }}>
+            Não está recebendo no celular? Toque em <strong>Registrar novamente</strong> e confira nos
+            ajustes do celular se o Chrome pode enviar notificações e está sem restrição de bateria.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button className="btn btn-sm" onClick={enable} disabled={status === "working"}>
+              {status === "working" ? "Registrando..." : "🔄 Registrar novamente"}
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={disable}>
+              Desativar
+            </button>
+          </div>
         </>
       ) : (
         <>
