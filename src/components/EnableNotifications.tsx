@@ -61,7 +61,11 @@ export default function EnableNotifications() {
       }
       setStatus("on");
     } catch (e: any) {
-      setError("Não foi possível ativar as notificações neste dispositivo.");
+      const hint = e?.name ? ` (${e.name})` : "";
+      setError(
+        `Não foi possível ativar as notificações neste dispositivo${hint}. ` +
+          "Em celulares Xiaomi/HyperOS, abra o app pelo Chrome (não pelo navegador da Xiaomi) e tente de novo."
+      );
       setStatus("off");
     }
   }
@@ -87,7 +91,8 @@ export default function EnableNotifications() {
     return (
       <p className="muted">
         📵 Este dispositivo/navegador não suporta notificações. No iPhone, primeiro adicione o app
-        à tela de início (via Safari) e abra por lá.
+        à tela de início (via Safari) e abra por lá. No Android (Xiaomi/HyperOS), use o{" "}
+        <strong>Chrome</strong> — o navegador padrão da Xiaomi pode não suportar push.
       </p>
     );
   }
