@@ -492,6 +492,15 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   flex-wrap: wrap;
 }
 .pix-box > div { flex: 1; min-width: 0; }
+.payout {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+.payout-title {
+  margin: 0 0 2px;
+  font-size: 0.98rem;
+}
 .pix-key {
   font-family: ui-monospace, Menlo, Consolas, monospace;
   font-size: 0.9rem;

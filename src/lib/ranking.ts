@@ -150,6 +150,29 @@ export async function getRoundWinners(round: RoundWithMatches): Promise<RoundRan
 }
 
 /**
+ * Premiado(s) da rodada — quem RECEBE o pagamento (chave PIX exibida). Critério:
+ * quem CRAVOU MAIS placares exatos na rodada (empate divide). Se ninguém cravou
+ * nenhum exato, cai para o vencedor em pontos. Distinto do troféu, que continua
+ * sendo de quem mais pontuou (ver winnersFromRanking).
+ */
+export function payeesFromRanking(
+  ranking: RoundRankingEntry[],
+  round: RoundWithMatches
+): RoundRankingEntry[] {
+  if (roundStatus(round) !== "encerrada" || ranking.length === 0) return [];
+  const topExact = Math.max(...ranking.map((e) => e.exactCount));
+  if (topExact > 0) return ranking.filter((e) => e.exactCount === topExact);
+  return winnersFromRanking(ranking, round); // ninguém cravou → paga o vencedor em pontos
+}
+
+/** Premiado(s) da rodada (pagamento) — ver payeesFromRanking. Só rodadas encerradas. */
+export async function getRoundPayees(round: RoundWithMatches): Promise<RoundRankingEntry[]> {
+  if (roundStatus(round) !== "encerrada") return [];
+  const ranking = await computeRoundRanking(round.id);
+  return payeesFromRanking(ranking, round);
+}
+
+/**
  * Vencedores de TODAS as rodadas em poucas consultas (evita N+1 na lista de rodadas).
  * Retorna um mapa roundId → { nomes, pontos } apenas para rodadas com pontuação > 0.
  * A checagem de "rodada encerrada" fica a cargo de quem consome (usa o status da rodada).

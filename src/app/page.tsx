@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { computeGeneralRanking, computeRoundRanking, getRoundWinners } from "@/lib/ranking";
+import {
+  computeGeneralRanking,
+  computeRoundRanking,
+  winnersFromRanking,
+  payeesFromRanking,
+} from "@/lib/ranking";
 import {
   dataCompletaBR,
   firstKickoff,
@@ -48,9 +53,9 @@ export default async function DashboardPage() {
     .map((r) => ({ round: r, open: r.matches.filter((m) => !m.finished && m.kickoff > now) }));
 
   // Lote 2 — depende do lote 1, também em paralelo
-  const [roundRanking, winners, myPredCount, myPreds] = await Promise.all([
+  const [roundRanking, lastRanking, myPredCount, myPreds] = await Promise.all([
     currentRound ? computeRoundRanking(currentRound.id) : Promise.resolve([]),
-    lastFinished ? getRoundWinners(lastFinished) : Promise.resolve([]),
+    lastFinished ? computeRoundRanking(lastFinished.id) : Promise.resolve([]),
     currentRound
       ? prisma.prediction.count({ where: { userId: user.id, match: { roundId: currentRound.id } } })
       : Promise.resolve(0),
@@ -94,6 +99,8 @@ export default async function DashboardPage() {
     : null;
   const nextDeadline = currentRound ? firstKickoff(currentRound) : null;
   const messageWindowOpen = nextDeadline === null || now < nextDeadline;
+  const winners = lastFinished ? winnersFromRanking(lastRanking, lastFinished) : []; // troféu: mais pontos
+  const payees = lastFinished ? payeesFromRanking(lastRanking, lastFinished) : []; // pagamento: mais cravadas
   const iAmWinner = winners.some((w) => w.user.id === user.id);
 
   return (
@@ -213,24 +220,41 @@ export default async function DashboardPage() {
           </h2>
           <p className="muted">
             {winners[0].points} pontos
-            {winners.length > 1 && " — prêmio dividido entre os empatados"}
+            {winners.length > 1 && " — empate na liderança em pontos"}
           </p>
-          {winners.map((w) =>
-            w.user.pixKey ? (
-              <div className="pix-box" key={w.user.id}>
-                <div>
-                  <div className="muted">
-                    PIX de {w.user.name} {w.user.pixKeyType ? `(${w.user.pixKeyType})` : ""}
-                  </div>
-                  <div className="pix-key">{w.user.pixKey}</div>
-                </div>
-                <CopyButton value={w.user.pixKey} />
-              </div>
-            ) : (
-              <p className="muted" key={w.user.id}>
-                {w.user.name} ainda não cadastrou a chave PIX.
+
+          {payees.length > 0 && (
+            <div className="payout">
+              <h3 className="payout-title">
+                💸 Pagamento —{" "}
+                {payees[0].exactCount > 0
+                  ? `quem cravou mais (${payees[0].exactCount} ${
+                      payees[0].exactCount > 1 ? "placares exatos" : "placar exato"
+                    })`
+                  : "ninguém cravou; vai para o vencedor em pontos"}
+              </h3>
+              <p className="muted">
+                Recebe: <strong>{payees.map((p) => p.user.name).join(" e ")}</strong>
+                {payees.length > 1 && " — prêmio dividido entre os empatados"}
               </p>
-            )
+              {payees.map((p) =>
+                p.user.pixKey ? (
+                  <div className="pix-box" key={p.user.id}>
+                    <div>
+                      <div className="muted">
+                        PIX de {p.user.name} {p.user.pixKeyType ? `(${p.user.pixKeyType})` : ""}
+                      </div>
+                      <div className="pix-key">{p.user.pixKey}</div>
+                    </div>
+                    <CopyButton value={p.user.pixKey} />
+                  </div>
+                ) : (
+                  <p className="muted" key={p.user.id}>
+                    {p.user.name} ainda não cadastrou a chave PIX.
+                  </p>
+                )
+              )}
+            </div>
           )}
 
           {winnerMessage && (

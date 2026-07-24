@@ -43,7 +43,7 @@ export default function ProfileForms({ defaults }: { defaults: Defaults }) {
           </div>
           <div className="field">
             <label htmlFor="pixKey">Chave PIX</label>
-            <input id="pixKey" name="pixKey" defaultValue={defaults.pixKey} placeholder="Exibida quando você vencer uma rodada" />
+            <input id="pixKey" name="pixKey" defaultValue={defaults.pixKey} placeholder="Exibida quando você cravar mais placares na rodada" />
           </div>
           <button className="btn" disabled={profilePending}>
             {profilePending ? "Salvando..." : "Salvar alterações"}

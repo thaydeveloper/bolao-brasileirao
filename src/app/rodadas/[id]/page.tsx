@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { computeRoundRanking, winnersFromRanking } from "@/lib/ranking";
+import { computeRoundRanking, winnersFromRanking, payeesFromRanking } from "@/lib/ranking";
 import { dataCompletaBR, isMatchLocked, roundStatus, STATUS_LABEL } from "@/lib/rounds";
 import PredictionForm from "@/components/PredictionForm";
 import CopyButton from "@/components/CopyButton";
@@ -91,7 +91,8 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
 
   const status = roundStatus(round);
   const ranking = await computeRoundRanking(round.id);
-  const winners = winnersFromRanking(ranking, round);
+  const winners = winnersFromRanking(ranking, round); // troféu: mais pontos
+  const payees = payeesFromRanking(ranking, round); // pagamento: mais cravadas
   const hasLive = round.matches.some((m) => isMatchLive(m));
 
   // Quadro "quem já palpitou" — só o progresso (X/N), nunca os placares
@@ -149,23 +150,40 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
             🏆 {winners.map((w) => w.user.name).join(" e ")}{" "}
             {winners.length > 1 ? "venceram" : "venceu"} a rodada com {winners[0].points} pontos!
           </h2>
-          {winners.length > 1 && <p className="muted">Prêmio dividido entre os empatados.</p>}
-          {winners.map((w) =>
-            w.user.pixKey ? (
-              <div className="pix-box" key={w.user.id}>
-                <div>
-                  <div className="muted">
-                    PIX de {w.user.name} {w.user.pixKeyType ? `(${w.user.pixKeyType})` : ""}
-                  </div>
-                  <div className="pix-key">{w.user.pixKey}</div>
-                </div>
-                <CopyButton value={w.user.pixKey} />
-              </div>
-            ) : (
-              <p className="muted" key={w.user.id}>
-                {w.user.name} ainda não cadastrou a chave PIX.
+          {winners.length > 1 && <p className="muted">Empate na liderança em pontos.</p>}
+
+          {payees.length > 0 && (
+            <div className="payout">
+              <h3 className="payout-title">
+                💸 Pagamento —{" "}
+                {payees[0].exactCount > 0
+                  ? `quem cravou mais (${payees[0].exactCount} ${
+                      payees[0].exactCount > 1 ? "placares exatos" : "placar exato"
+                    })`
+                  : "ninguém cravou; vai para o vencedor em pontos"}
+              </h3>
+              <p className="muted">
+                Recebe: <strong>{payees.map((p) => p.user.name).join(" e ")}</strong>
+                {payees.length > 1 && " — prêmio dividido entre os empatados"}
               </p>
-            )
+              {payees.map((p) =>
+                p.user.pixKey ? (
+                  <div className="pix-box" key={p.user.id}>
+                    <div>
+                      <div className="muted">
+                        PIX de {p.user.name} {p.user.pixKeyType ? `(${p.user.pixKeyType})` : ""}
+                      </div>
+                      <div className="pix-key">{p.user.pixKey}</div>
+                    </div>
+                    <CopyButton value={p.user.pixKey} />
+                  </div>
+                ) : (
+                  <p className="muted" key={p.user.id}>
+                    {p.user.name} ainda não cadastrou a chave PIX.
+                  </p>
+                )
+              )}
+            </div>
           )}
         </div>
       )}
