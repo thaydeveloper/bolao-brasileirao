@@ -128,8 +128,8 @@ export default function EnableNotifications() {
             ajustes do celular se o Chrome pode enviar notificações e está sem restrição de bateria.
           </p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="btn btn-sm" onClick={enable} disabled={status === "working"}>
-              {status === "working" ? "Registrando..." : "🔄 Registrar novamente"}
+            <button className="btn btn-sm" onClick={enable}>
+              🔄 Registrar novamente
             </button>
             <button className="btn btn-secondary btn-sm" onClick={disable}>
               Desativar
