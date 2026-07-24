@@ -9,6 +9,7 @@ import NewRoundForm from "./NewRoundForm";
 import ImportForm from "./ImportForm";
 import WinnerMessageTest from "./WinnerMessageTest";
 import AdminBroadcastForm from "./AdminBroadcastForm";
+import AdminDirectMessageForm from "./AdminDirectMessageForm";
 import Avatar from "@/components/Avatar";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,8 @@ export default async function AdminPage() {
       </div>
 
       <AdminBroadcastForm />
+
+      <AdminDirectMessageForm users={users.map((u) => ({ id: u.id, name: u.name }))} />
 
       <ImportForm configured={isConfigured()} />
 

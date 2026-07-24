@@ -54,6 +54,29 @@ export async function sendAdminBroadcastAction(
 }
 
 /**
+ * Envia um aviso livre do admin para UM participante específico (in-app + push).
+ * Útil para falar direto com alguém sem incomodar o grupo todo.
+ */
+export async function sendNotificationToUserAction(
+  _prev: FormState,
+  formData: FormData
+): Promise<FormState> {
+  await requireAdmin();
+  const userId = Number(formData.get("userId"));
+  const message = String(formData.get("message") ?? "").trim();
+
+  if (!Number.isInteger(userId) || userId <= 0) return { error: "Selecione um participante." };
+  if (!message) return { error: "Escreva uma mensagem antes de enviar." };
+  if (message.length > 500) return { error: "A mensagem deve ter no máximo 500 caracteres." };
+
+  const target = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true } });
+  if (!target) return { error: "Participante não encontrado." };
+
+  await notify(target.id, "aviso-admin", message, undefined, { title: "📣 Aviso do bolão" });
+  return { ok: `Mensagem enviada para ${target.name} (in-app + push) 🔔.` };
+}
+
+/**
  * Envia o lembrete da rodada em andamento SÓ para o admin — mesmo que ele já
  * tenha palpitado (o lembrete normal pula quem completou). Sem dedupe: serve
  * para testar o pop-up quando quiser.
