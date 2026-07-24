@@ -122,11 +122,12 @@ export default async function RegrasPage() {
             <strong>mais pontos</strong> na rodada.
           </li>
           <li>
-            <strong>Pagamento via PIX (a partir da rodada 20).</strong> O pagamento é{" "}
-            <strong>por cravada</strong>: recebe <strong>todo mundo que cravar</strong> pelo menos
-            um placar exato na rodada (pode ser diferente do vencedor em pontos). Se ninguém cravar,
-            ninguém recebe naquela rodada. Ao fim da rodada, a chave PIX de quem cravou aparece para
-            os demais copiarem e pagarem por fora do app.
+            <strong>Pagamento via PIX (a partir da rodada 20).</strong> O acerto é{" "}
+            <strong>por jogo</strong>: em cada jogo, quem <strong>não cravou</strong> o placar exato
+            paga <strong>R$&nbsp;5,00</strong> e o total é <strong>dividido entre quem cravou</strong>{" "}
+            aquele jogo. Quem cravou o jogo não paga nele. Se ninguém cravar um jogo, aquele jogo não
+            tem pagamento. O app mostra o <strong>saldo</strong> de cada um na rodada e a chave PIX de
+            quem recebe.
           </li>
           <li>
             <strong>Pagamento até a rodada 19.</strong> Recebia quem <strong>cravou mais</strong>{" "}

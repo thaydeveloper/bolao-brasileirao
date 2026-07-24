@@ -501,6 +501,11 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   margin: 0 0 2px;
   font-size: 0.98rem;
 }
+.settlement-game {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.settlement-game:last-child { border-bottom: none; }
 .pix-key {
   font-family: ui-monospace, Menlo, Consolas, monospace;
   font-size: 0.9rem;

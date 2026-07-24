@@ -8,6 +8,8 @@ import {
   isPayPerCravadaRound,
 } from "@/lib/ranking";
 import RoundPayout from "@/components/RoundPayout";
+import RoundSettlement from "@/components/RoundSettlement";
+import { computeRoundSettlement } from "@/lib/settlement";
 import { dataCompletaBR, isMatchLocked, roundStatus, STATUS_LABEL } from "@/lib/rounds";
 import PredictionForm from "@/components/PredictionForm";
 import Avatar from "@/components/Avatar";
@@ -97,7 +99,9 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
   const status = roundStatus(round);
   const ranking = await computeRoundRanking(round.id);
   const winners = winnersFromRanking(ranking, round); // troféu: mais pontos
-  const payees = payeesFromRanking(ranking, round); // pagamento: mais cravadas
+  const payPerCravada = isPayPerCravadaRound(round);
+  const payees = payPerCravada ? [] : payeesFromRanking(ranking, round); // <R20: quem cravou mais
+  const settlement = payPerCravada ? await computeRoundSettlement(round.id) : null; // >=R20: R$5/jogo
   const hasLive = round.matches.some((m) => isMatchLive(m));
 
   // Quadro "quem já palpitou" — só o progresso (X/N), nunca os placares
@@ -157,7 +161,11 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
           </h2>
           {winners.length > 1 && <p className="muted">Empate na liderança em pontos.</p>}
 
-          <RoundPayout payees={payees} payPerCravada={isPayPerCravadaRound(round)} />
+          {settlement ? (
+            <RoundSettlement settlement={settlement} />
+          ) : (
+            <RoundPayout payees={payees} payPerCravada={false} />
+          )}
         </div>
       )}
 

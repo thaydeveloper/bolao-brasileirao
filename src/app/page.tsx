@@ -9,6 +9,8 @@ import {
   isPayPerCravadaRound,
 } from "@/lib/ranking";
 import RoundPayout from "@/components/RoundPayout";
+import RoundSettlement from "@/components/RoundSettlement";
+import { computeRoundSettlement } from "@/lib/settlement";
 import {
   dataCompletaBR,
   firstKickoff,
@@ -101,7 +103,10 @@ export default async function DashboardPage() {
   const nextDeadline = currentRound ? firstKickoff(currentRound) : null;
   const messageWindowOpen = nextDeadline === null || now < nextDeadline;
   const winners = lastFinished ? winnersFromRanking(lastRanking, lastFinished) : []; // troféu: mais pontos
-  const payees = lastFinished ? payeesFromRanking(lastRanking, lastFinished) : []; // pagamento: mais cravadas
+  const payPerCravada = lastFinished ? isPayPerCravadaRound(lastFinished) : false;
+  const payees = lastFinished && !payPerCravada ? payeesFromRanking(lastRanking, lastFinished) : []; // <R20
+  const settlement =
+    lastFinished && payPerCravada ? await computeRoundSettlement(lastFinished.id) : null; // >=R20
   const iAmWinner = winners.some((w) => w.user.id === user.id);
 
   return (
@@ -224,7 +229,11 @@ export default async function DashboardPage() {
             {winners.length > 1 && " — empate na liderança em pontos"}
           </p>
 
-          <RoundPayout payees={payees} payPerCravada={isPayPerCravadaRound(lastFinished)} />
+          {settlement ? (
+            <RoundSettlement settlement={settlement} />
+          ) : (
+            <RoundPayout payees={payees} payPerCravada={false} />
+          )}
 
           {winnerMessage && (
             <div className="winner-msg">
