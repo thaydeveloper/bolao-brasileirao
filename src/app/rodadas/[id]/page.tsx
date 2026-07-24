@@ -1,10 +1,15 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { computeRoundRanking, winnersFromRanking, payeesFromRanking } from "@/lib/ranking";
+import {
+  computeRoundRanking,
+  winnersFromRanking,
+  payeesFromRanking,
+  isPayPerCravadaRound,
+} from "@/lib/ranking";
+import RoundPayout from "@/components/RoundPayout";
 import { dataCompletaBR, isMatchLocked, roundStatus, STATUS_LABEL } from "@/lib/rounds";
 import PredictionForm from "@/components/PredictionForm";
-import CopyButton from "@/components/CopyButton";
 import Avatar from "@/components/Avatar";
 import TeamCrest from "@/components/TeamCrest";
 import PlayerLink from "@/components/PlayerLink";
@@ -152,39 +157,7 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
           </h2>
           {winners.length > 1 && <p className="muted">Empate na liderança em pontos.</p>}
 
-          {payees.length > 0 && (
-            <div className="payout">
-              <h3 className="payout-title">
-                💸 Pagamento —{" "}
-                {payees[0].exactCount > 0
-                  ? `quem cravou mais (${payees[0].exactCount} ${
-                      payees[0].exactCount > 1 ? "placares exatos" : "placar exato"
-                    })`
-                  : "ninguém cravou; vai para o vencedor em pontos"}
-              </h3>
-              <p className="muted">
-                Recebe: <strong>{payees.map((p) => p.user.name).join(" e ")}</strong>
-                {payees.length > 1 && " — prêmio dividido entre os empatados"}
-              </p>
-              {payees.map((p) =>
-                p.user.pixKey ? (
-                  <div className="pix-box" key={p.user.id}>
-                    <div>
-                      <div className="muted">
-                        PIX de {p.user.name} {p.user.pixKeyType ? `(${p.user.pixKeyType})` : ""}
-                      </div>
-                      <div className="pix-key">{p.user.pixKey}</div>
-                    </div>
-                    <CopyButton value={p.user.pixKey} />
-                  </div>
-                ) : (
-                  <p className="muted" key={p.user.id}>
-                    {p.user.name} ainda não cadastrou a chave PIX.
-                  </p>
-                )
-              )}
-            </div>
-          )}
+          <RoundPayout payees={payees} payPerCravada={isPayPerCravadaRound(round)} />
         </div>
       )}
 

@@ -6,7 +6,9 @@ import {
   computeRoundRanking,
   winnersFromRanking,
   payeesFromRanking,
+  isPayPerCravadaRound,
 } from "@/lib/ranking";
+import RoundPayout from "@/components/RoundPayout";
 import {
   dataCompletaBR,
   firstKickoff,
@@ -16,7 +18,6 @@ import {
 } from "@/lib/rounds";
 import { WINNER_MESSAGE_MAX } from "@/lib/winnerMessage";
 import Countdown from "@/components/Countdown";
-import CopyButton from "@/components/CopyButton";
 import PlayerLink from "@/components/PlayerLink";
 import WinnerMessageForm from "@/components/WinnerMessageForm";
 import PredictionForm from "@/components/PredictionForm";
@@ -223,39 +224,7 @@ export default async function DashboardPage() {
             {winners.length > 1 && " — empate na liderança em pontos"}
           </p>
 
-          {payees.length > 0 && (
-            <div className="payout">
-              <h3 className="payout-title">
-                💸 Pagamento —{" "}
-                {payees[0].exactCount > 0
-                  ? `quem cravou mais (${payees[0].exactCount} ${
-                      payees[0].exactCount > 1 ? "placares exatos" : "placar exato"
-                    })`
-                  : "ninguém cravou; vai para o vencedor em pontos"}
-              </h3>
-              <p className="muted">
-                Recebe: <strong>{payees.map((p) => p.user.name).join(" e ")}</strong>
-                {payees.length > 1 && " — prêmio dividido entre os empatados"}
-              </p>
-              {payees.map((p) =>
-                p.user.pixKey ? (
-                  <div className="pix-box" key={p.user.id}>
-                    <div>
-                      <div className="muted">
-                        PIX de {p.user.name} {p.user.pixKeyType ? `(${p.user.pixKeyType})` : ""}
-                      </div>
-                      <div className="pix-key">{p.user.pixKey}</div>
-                    </div>
-                    <CopyButton value={p.user.pixKey} />
-                  </div>
-                ) : (
-                  <p className="muted" key={p.user.id}>
-                    {p.user.name} ainda não cadastrou a chave PIX.
-                  </p>
-                )
-              )}
-            </div>
-          )}
+          <RoundPayout payees={payees} payPerCravada={isPayPerCravadaRound(lastFinished)} />
 
           {winnerMessage && (
             <div className="winner-msg">

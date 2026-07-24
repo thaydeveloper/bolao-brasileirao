@@ -122,11 +122,15 @@ export default async function RegrasPage() {
             <strong>mais pontos</strong> na rodada.
           </li>
           <li>
-            <strong>Pagamento via PIX.</strong> Quem <strong>recebe</strong> é quem{" "}
-            <strong>cravar mais placares exatos</strong> na rodada (pode ser diferente do vencedor
-            em pontos). Empate no nº de cravadas: prêmio <strong>dividido</strong>. Se ninguém
-            cravar nenhum placar exato, o pagamento vai para o vencedor em pontos. Ao fim da rodada,
-            a chave PIX de quem recebe aparece para os demais copiarem e pagarem por fora do app.
+            <strong>Pagamento via PIX (a partir da rodada 20).</strong> O pagamento é{" "}
+            <strong>por cravada</strong>: recebe <strong>todo mundo que cravar</strong> pelo menos
+            um placar exato na rodada (pode ser diferente do vencedor em pontos). Se ninguém cravar,
+            ninguém recebe naquela rodada. Ao fim da rodada, a chave PIX de quem cravou aparece para
+            os demais copiarem e pagarem por fora do app.
+          </li>
+          <li>
+            <strong>Pagamento até a rodada 19.</strong> Recebia quem <strong>cravou mais</strong>{" "}
+            placares exatos na rodada (empate dividia; sem cravadas, ia para o vencedor em pontos).
           </li>
           <li>
             <strong>Ranking geral.</strong> Soma os pontos de todas as rodadas. Desempate: mais
