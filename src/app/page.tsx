@@ -1,16 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import {
-  computeGeneralRanking,
-  computeRoundRanking,
-  winnersFromRanking,
-  payeesFromRanking,
-  isPayPerCravadaRound,
-} from "@/lib/ranking";
-import RoundPayout from "@/components/RoundPayout";
-import RoundSettlement from "@/components/RoundSettlement";
-import { computeRoundSettlement } from "@/lib/settlement";
+import { computeGeneralRanking, computeRoundRanking, winnersFromRanking } from "@/lib/ranking";
+import CopyButton from "@/components/CopyButton";
+import RuleChangePopup from "@/components/RuleChangePopup";
 import {
   dataCompletaBR,
   firstKickoff,
@@ -102,15 +95,14 @@ export default async function DashboardPage() {
     : null;
   const nextDeadline = currentRound ? firstKickoff(currentRound) : null;
   const messageWindowOpen = nextDeadline === null || now < nextDeadline;
-  const winners = lastFinished ? winnersFromRanking(lastRanking, lastFinished) : []; // troféu: mais pontos
-  const payPerCravada = lastFinished ? isPayPerCravadaRound(lastFinished) : false;
-  const payees = lastFinished && !payPerCravada ? payeesFromRanking(lastRanking, lastFinished) : []; // <R20
-  const settlement =
-    lastFinished && payPerCravada ? await computeRoundSettlement(lastFinished.id) : null; // >=R20
+  const winners = lastFinished ? winnersFromRanking(lastRanking, lastFinished) : []; // vencedor e pagamento: mais pontos
   const iAmWinner = winners.some((w) => w.user.id === user.id);
 
   return (
     <main>
+      {/* Aviso da mudança de regra: só enquanto a rodada 20 é a vigente */}
+      {currentRound?.number === 20 && <RuleChangePopup />}
+
       <div className="section-header">
         <div>
           <h1>Olá, {user.name.split(" ")[0]}! 👋</h1>
@@ -226,13 +218,24 @@ export default async function DashboardPage() {
           </h2>
           <p className="muted">
             {winners[0].points} pontos
-            {winners.length > 1 && " — empate na liderança em pontos"}
+            {winners.length > 1 && " — prêmio dividido entre os empatados"}
           </p>
-
-          {settlement ? (
-            <RoundSettlement settlement={settlement} />
-          ) : (
-            <RoundPayout payees={payees} payPerCravada={false} />
+          {winners.map((w) =>
+            w.user.pixKey ? (
+              <div className="pix-box" key={w.user.id}>
+                <div>
+                  <div className="muted">
+                    PIX de {w.user.name} {w.user.pixKeyType ? `(${w.user.pixKeyType})` : ""}
+                  </div>
+                  <div className="pix-key">{w.user.pixKey}</div>
+                </div>
+                <CopyButton value={w.user.pixKey} />
+              </div>
+            ) : (
+              <p className="muted" key={w.user.id}>
+                {w.user.name} ainda não cadastrou a chave PIX.
+              </p>
+            )
           )}
 
           {winnerMessage && (

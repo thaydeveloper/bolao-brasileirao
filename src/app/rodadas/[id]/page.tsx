@@ -1,15 +1,8 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import {
-  computeRoundRanking,
-  winnersFromRanking,
-  payeesFromRanking,
-  isPayPerCravadaRound,
-} from "@/lib/ranking";
-import RoundPayout from "@/components/RoundPayout";
-import RoundSettlement from "@/components/RoundSettlement";
-import { computeRoundSettlement } from "@/lib/settlement";
+import { computeRoundRanking, winnersFromRanking } from "@/lib/ranking";
+import CopyButton from "@/components/CopyButton";
 import { dataCompletaBR, isMatchLocked, roundStatus, STATUS_LABEL } from "@/lib/rounds";
 import PredictionForm from "@/components/PredictionForm";
 import Avatar from "@/components/Avatar";
@@ -98,10 +91,7 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
 
   const status = roundStatus(round);
   const ranking = await computeRoundRanking(round.id);
-  const winners = winnersFromRanking(ranking, round); // troféu: mais pontos
-  const payPerCravada = isPayPerCravadaRound(round);
-  const payees = payPerCravada ? [] : payeesFromRanking(ranking, round); // <R20: quem cravou mais
-  const settlement = payPerCravada ? await computeRoundSettlement(round.id) : null; // >=R20: R$5/jogo
+  const winners = winnersFromRanking(ranking, round); // vencedor e pagamento: mais pontos
   const hasLive = round.matches.some((m) => isMatchLive(m));
 
   // Quadro "quem já palpitou" — só o progresso (X/N), nunca os placares
@@ -159,12 +149,23 @@ export default async function RodadaPage({ params }: { params: Promise<{ id: str
             🏆 {winners.map((w) => w.user.name).join(" e ")}{" "}
             {winners.length > 1 ? "venceram" : "venceu"} a rodada com {winners[0].points} pontos!
           </h2>
-          {winners.length > 1 && <p className="muted">Empate na liderança em pontos.</p>}
-
-          {settlement ? (
-            <RoundSettlement settlement={settlement} />
-          ) : (
-            <RoundPayout payees={payees} payPerCravada={false} />
+          {winners.length > 1 && <p className="muted">Prêmio dividido entre os empatados.</p>}
+          {winners.map((w) =>
+            w.user.pixKey ? (
+              <div className="pix-box" key={w.user.id}>
+                <div>
+                  <div className="muted">
+                    PIX de {w.user.name} {w.user.pixKeyType ? `(${w.user.pixKeyType})` : ""}
+                  </div>
+                  <div className="pix-key">{w.user.pixKey}</div>
+                </div>
+                <CopyButton value={w.user.pixKey} />
+              </div>
+            ) : (
+              <p className="muted" key={w.user.id}>
+                {w.user.name} ainda não cadastrou a chave PIX.
+              </p>
+            )
           )}
         </div>
       )}

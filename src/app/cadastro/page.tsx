@@ -39,7 +39,7 @@ export default function CadastroPage() {
             </select>
           </div>
           <div className="field">
-            <label htmlFor="pixKey">Chave PIX (opcional — usada para receber quando você cravar mais placares na rodada)</label>
+            <label htmlFor="pixKey">Chave PIX (opcional — usada para receber quando você vencer a rodada)</label>
             <input id="pixKey" name="pixKey" />
           </div>
           <button className="btn btn-block" disabled={pending}>

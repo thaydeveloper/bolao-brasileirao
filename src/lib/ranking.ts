@@ -142,53 +142,14 @@ export function winnersFromRanking(
   return ranking.filter((e) => e.points === top);
 }
 
-/** Vencedor(es) da rodada — empatados dividem o prêmio. Só vale para rodadas encerradas. */
+/**
+ * Vencedor(es) da rodada — quem faz MAIS PONTOS (empatados dividem o prêmio, e o
+ * pagamento também vai para o vencedor). Só vale para rodadas encerradas.
+ */
 export async function getRoundWinners(round: RoundWithMatches): Promise<RoundRankingEntry[]> {
   if (roundStatus(round) !== "encerrada") return [];
   const ranking = await computeRoundRanking(round.id);
   return winnersFromRanking(ranking, round);
-}
-
-/**
- * A partir desta rodada, o pagamento é POR CRAVADA: recebem TODOS que cravaram ao
- * menos um placar exato (e, se ninguém cravou, ninguém recebe). Antes disso vale a
- * regra antiga (quem cravou MAIS; sem cravadas, o vencedor em pontos).
- */
-export const PAY_PER_CRAVADA_FROM_ROUND = 20;
-
-/** True se a rodada usa o pagamento por cravada (todos que cravaram). */
-export function isPayPerCravadaRound(round: RoundWithMatches): boolean {
-  return round.number >= PAY_PER_CRAVADA_FROM_ROUND;
-}
-
-/**
- * Premiado(s) da rodada — quem RECEBE o pagamento (chave PIX exibida). Distinto do
- * troféu, que continua sendo de quem mais pontuou (ver winnersFromRanking).
- *
- * - Rodada >= PAY_PER_CRAVADA_FROM_ROUND: pagamento POR CRAVADA → todos que cravaram
- *   ao menos um placar exato. Se ninguém cravou, ninguém recebe (lista vazia).
- * - Rodadas anteriores: quem CRAVOU MAIS (empate divide); sem cravadas, o vencedor
- *   em pontos.
- */
-export function payeesFromRanking(
-  ranking: RoundRankingEntry[],
-  round: RoundWithMatches
-): RoundRankingEntry[] {
-  if (roundStatus(round) !== "encerrada" || ranking.length === 0) return [];
-  const withExact = ranking.filter((e) => e.exactCount > 0);
-
-  if (isPayPerCravadaRound(round)) return withExact; // todos que cravaram (ou vazio)
-
-  if (withExact.length === 0) return winnersFromRanking(ranking, round); // ninguém cravou → vencedor em pontos
-  const topExact = Math.max(...withExact.map((e) => e.exactCount));
-  return withExact.filter((e) => e.exactCount === topExact); // quem cravou mais
-}
-
-/** Premiado(s) da rodada (pagamento) — ver payeesFromRanking. Só rodadas encerradas. */
-export async function getRoundPayees(round: RoundWithMatches): Promise<RoundRankingEntry[]> {
-  if (roundStatus(round) !== "encerrada") return [];
-  const ranking = await computeRoundRanking(round.id);
-  return payeesFromRanking(ranking, round);
 }
 
 /**

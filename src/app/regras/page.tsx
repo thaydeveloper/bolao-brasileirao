@@ -118,20 +118,14 @@ export default async function RegrasPage() {
             pontos são calculados na hora e os rankings são atualizados.
           </li>
           <li>
-            <strong>Vencedor da rodada.</strong> O troféu 🏆 vai para quem fizer{" "}
-            <strong>mais pontos</strong> na rodada.
+            <strong>Vencedor da rodada.</strong> Ganha a rodada quem fizer{" "}
+            <strong>mais pontos</strong>. Em caso de empate na pontuação, o prêmio é{" "}
+            <strong>dividido</strong> entre os empatados.
           </li>
           <li>
-            <strong>Pagamento via PIX (a partir da rodada 20).</strong> O acerto é{" "}
-            <strong>por jogo</strong>: em cada jogo, quem <strong>não cravou</strong> o placar exato
-            paga <strong>R$&nbsp;5,00</strong> e o total é <strong>dividido entre quem cravou</strong>{" "}
-            aquele jogo. Quem cravou o jogo não paga nele. Se ninguém cravar um jogo, aquele jogo não
-            tem pagamento. O app mostra o <strong>saldo</strong> de cada um na rodada e a chave PIX de
-            quem recebe.
-          </li>
-          <li>
-            <strong>Pagamento até a rodada 19.</strong> Recebia quem <strong>cravou mais</strong>{" "}
-            placares exatos na rodada (empate dividia; sem cravadas, ia para o vencedor em pontos).
+            <strong>Pagamento via PIX.</strong> O pagamento vai para o{" "}
+            <strong>vencedor da rodada</strong> (quem mais pontuou). Ao fim da rodada, a chave PIX do
+            vencedor aparece para os demais copiarem e pagarem por fora do app.
           </li>
           <li>
             <strong>Ranking geral.</strong> Soma os pontos de todas as rodadas. Desempate: mais
