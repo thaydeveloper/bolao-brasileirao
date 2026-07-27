@@ -171,7 +171,8 @@ export async function updateResultAction(_prev: FormState, formData: FormData): 
 
   await prisma.match.update({
     where: { id: matchId },
-    data: { homeScore, awayScore, finished },
+    // manualResult: o reconcile automático não sobrescreve o que o admin lançou.
+    data: { homeScore, awayScore, finished, manualResult: true },
   });
 
   await recomputeMatchPoints(matchId, finished ? { home: homeScore, away: awayScore } : null);

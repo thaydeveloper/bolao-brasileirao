@@ -289,38 +289,43 @@ export async function syncLiveMatches(opts?: { force?: boolean }): Promise<LiveM
 }
 
 /**
- * Rede de segurança: finaliza jogos que já terminaram mas escaparam da janela do
- * ao vivo (API atrasou o status FINISHED, cota estourou, ninguém abriu o app dentro
- * das 6h após o início). Busca o placar OFICIAL da temporada no football-data
- * (independente de qual provedor faz o ao vivo) e, para cada jogo pendente com
- * resultado disponível, grava o placar e repontua os palpites — o mesmo efeito da
- * finalização automática, só que sem depender da janela de candidatos.
+ * Rede de segurança contra placar errado/atrasado. Busca o placar OFICIAL da
+ * temporada no football-data e, dentro da janela, para cada jogo (com id externo e
+ * NÃO marcado como resultado manual):
+ *   - finaliza o que ainda não fechou (escapou do ao vivo); e
+ *   - CORRIGE o que já fechou com placar diferente do oficial (ex.: o ao vivo
+ *     gravou um gol depois anulado no VAR / correção de dados da API).
+ * Sempre repontua os palpites. Resultados lançados manualmente pelo admin
+ * (manualResult) são a autoridade final e nunca são sobrescritos.
  *
- * Idempotente e barato: sem jogo pendente → sem chamada à API; 1 request por
- * temporada. Seguro para rodar no cron (a cada ~15 min). Devolve quantos finalizou.
+ * Idempotente e barato: 1 request por temporada; só grava quando há diferença.
+ * Seguro no cron (~15 min). Devolve quantos jogos alterou.
  */
 export async function reconcileFinishedMatches(now = new Date()): Promise<number> {
   if (!isFootballDataConfigured()) return 0;
 
   const since = new Date(now.getTime() - RECONCILE_WINDOW_MS);
-  const pending = await prisma.match.findMany({
+  const candidates = await prisma.match.findMany({
     where: {
-      finished: false,
       externalId: { not: null },
+      manualResult: false,
       kickoff: { lte: now, gte: since },
     },
     select: {
       id: true,
       roundId: true,
       externalId: true,
+      finished: true,
+      homeScore: true,
+      awayScore: true,
       round: { select: { number: true, season: true } },
     },
   });
-  if (pending.length === 0) return 0;
+  if (candidates.length === 0) return 0;
 
   // 1 request por temporada → mapa externalId → placar oficial (só jogos encerrados)
   const official = new Map<number, { home: number; away: number }>();
-  for (const season of new Set(pending.map((p) => p.round.season))) {
+  for (const season of new Set(candidates.map((c) => c.round.season))) {
     let matches;
     try {
       matches = await fetchMatches(season);
@@ -335,14 +340,18 @@ export async function reconcileFinishedMatches(now = new Date()): Promise<number
   }
 
   const previousLeaders = await getGeneralLeaders();
-  const finishedRoundIds = new Set<number>();
-  let finalized = 0;
+  const newlyFinishedRoundIds = new Set<number>();
+  let changed = 0;
 
-  for (const p of pending) {
-    const result = p.externalId != null ? official.get(p.externalId) : undefined;
+  for (const c of candidates) {
+    const result = c.externalId != null ? official.get(c.externalId) : undefined;
     if (!result) continue;
+    // Já bate com o oficial? Nada a fazer.
+    if (c.finished && c.homeScore === result.home && c.awayScore === result.away) continue;
+
+    const wasFinished = c.finished;
     await prisma.match.update({
-      where: { id: p.id },
+      where: { id: c.id },
       data: {
         homeScore: result.home,
         awayScore: result.away,
@@ -353,19 +362,19 @@ export async function reconcileFinishedMatches(now = new Date()): Promise<number
         liveAt: now,
       },
     });
-    await recomputeMatchPoints(p.id, result);
-    finishedRoundIds.add(p.roundId);
-    finalized++;
+    await recomputeMatchPoints(c.id, result);
+    changed++;
+    if (!wasFinished) newlyFinishedRoundIds.add(c.roundId); // notifica só quando ACABA de fechar
   }
 
-  for (const roundId of finishedRoundIds) {
+  for (const roundId of newlyFinishedRoundIds) {
     const roundMatches = await prisma.match.findMany({ where: { roundId } });
     if (roundMatches.length > 0 && roundMatches.every((x) => x.finished)) {
-      const number = pending.find((p) => p.roundId === roundId)?.round.number ?? 0;
+      const number = candidates.find((c) => c.roundId === roundId)?.round.number ?? 0;
       await notifyRoundFinished(roundId, number);
     }
   }
-  if (finalized > 0) await checkNewLeader(previousLeaders);
+  if (changed > 0) await checkNewLeader(previousLeaders);
 
-  return finalized;
+  return changed;
 }

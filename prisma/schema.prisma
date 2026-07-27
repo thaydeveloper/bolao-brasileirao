@@ -92,6 +92,8 @@ model Match {
   homeScore   Int?
   awayScore   Int?
   finished    Boolean      @default(false)
+  // Resultado lançado manualmente pelo admin: o reconcile automático NÃO sobrescreve.
+  manualResult Boolean     @default(false)
   // Placar ao vivo (independente do resultado oficial; só a finalização grava homeScore/awayScore)
   liveStatus  String? // TIMED | IN_PLAY | PAUSED | FINISHED | SUSPENDED | POSTPONED
   liveHome    Int?
