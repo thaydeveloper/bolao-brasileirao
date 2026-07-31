@@ -6,9 +6,32 @@ import { sendPushToUser } from "./push";
 
 const REMINDER_WINDOW_MS = 30 * 60 * 1000; // 30 minutos
 
+// Horário silencioso (fuso de Brasília): não dispara PUSH das 23h às 8h. A
+// notificação continua sendo salva no sininho 🔔 (só não vibra o celular de madrugada).
+const QUIET_START_HOUR = 23; // inclusive
+const QUIET_END_HOUR = 8; // exclusive
+
+/** Hora atual (0–23) no fuso de Brasília, independente do fuso do servidor. */
+function brasiliaHour(now: Date): number {
+  const h = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).format(now);
+  return parseInt(h, 10);
+}
+
+/** True se agora está na faixa silenciosa (23h–8h de Brasília). */
+export function isQuietHours(now = new Date()): boolean {
+  const hour = brasiliaHour(now);
+  return hour >= QUIET_START_HOUR || hour < QUIET_END_HOUR;
+}
+
 /**
  * Cria uma notificação in-app e dispara a notificação push (pop-up) para o usuário.
  * Com dedupeKey, nunca duplica: se já existir, não recria nem reenvia o push.
+ * Entre 23h e 8h (Brasília) o push é suprimido para não incomodar de madrugada —
+ * a notificação fica salva no sininho e o usuário vê quando abrir o app.
  */
 export async function notify(
   userId: number,
@@ -28,7 +51,7 @@ export async function notify(
     }
   }
 
-  if (created) {
+  if (created && !isQuietHours()) {
     await sendPushToUser(userId, {
       title: options?.title ?? "Bolão Brasileirão ⚽",
       body: message,
