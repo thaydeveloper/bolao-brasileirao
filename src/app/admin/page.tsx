@@ -10,6 +10,7 @@ import ImportForm from "./ImportForm";
 import WinnerMessageTest from "./WinnerMessageTest";
 import AdminBroadcastForm from "./AdminBroadcastForm";
 import AdminDirectMessageForm from "./AdminDirectMessageForm";
+import AdminResetLink from "./AdminResetLink";
 import Avatar from "@/components/Avatar";
 
 export const dynamic = "force-dynamic";
@@ -114,11 +115,14 @@ export default async function AdminPage() {
                     </span>
                   </td>
                   <td className="num">
-                    {user.id !== admin.id && (
-                      <form action={removeMemberAction.bind(null, user.id)}>
-                        <button className="btn btn-sm btn-danger">Remover</button>
-                      </form>
-                    )}
+                    <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap", alignItems: "flex-start" }}>
+                      <AdminResetLink userId={user.id} />
+                      {user.id !== admin.id && (
+                        <form action={removeMemberAction.bind(null, user.id)}>
+                          <button className="btn btn-sm btn-danger">Remover</button>
+                        </form>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
