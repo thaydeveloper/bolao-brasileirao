@@ -378,3 +378,42 @@ export async function reconcileFinishedMatches(now = new Date()): Promise<number
 
   return changed;
 }
+
+/**
+ * Mantém os HORÁRIOS (kickoff) dos jogos futuros em dia com o football-data. Sem
+ * isso, um jogo importado quando o horário ainda era "a definir" (a API devolve
+ * meia-noite UTC) fica com hora errada — e o app trava o palpite cedo demais e
+ * revela os palpites dos outros antes da hora. Só toca em jogos NÃO encerrados e
+ * com id externo (rodadas criadas à mão, sem externalId, não são alteradas).
+ * Barato (1 request por temporada). Devolve quantos horários ajustou.
+ */
+export async function syncUpcomingSchedules(): Promise<number> {
+  if (!isFootballDataConfigured()) return 0;
+
+  const matches = await prisma.match.findMany({
+    where: { finished: false, externalId: { not: null } },
+    select: { id: true, externalId: true, kickoff: true, round: { select: { season: true } } },
+  });
+  if (matches.length === 0) return 0;
+
+  const official = new Map<number, Date>();
+  for (const season of new Set(matches.map((m) => m.round.season))) {
+    let fd;
+    try {
+      fd = await fetchMatches(season);
+    } catch {
+      continue;
+    }
+    for (const m of fd) official.set(m.externalId, m.kickoff);
+  }
+
+  let updated = 0;
+  for (const m of matches) {
+    const off = m.externalId != null ? official.get(m.externalId) : undefined;
+    if (!off) continue;
+    if (Math.abs(off.getTime() - m.kickoff.getTime()) < 60_000) continue; // já igual (tolera 1 min)
+    await prisma.match.update({ where: { id: m.id }, data: { kickoff: off } });
+    updated++;
+  }
+  return updated;
+}
