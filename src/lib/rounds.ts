@@ -73,6 +73,24 @@ export function isMatchLocked(match: Match, now = new Date()): boolean {
   return match.finished || match.kickoff <= now;
 }
 
+/**
+ * Tempo máximo que um jogo pode ser considerado "ao vivo" após o início. Passou
+ * disso sem a API finalizar (ex.: football-data trava em IN_PLAY 0x0), o app deixa
+ * de exibir "ao vivo" — o resultado oficial entra depois (reconcile ou admin).
+ * 3,5h cobre 90min + intervalo + acréscimos + folga.
+ */
+export const MAX_LIVE_AGE_MS = 3.5 * 60 * 60 * 1000;
+
+/** Jogo realmente ao vivo: em andamento, não encerrado e dentro da janela de 3,5h. */
+export function isMatchLive(
+  m: { finished: boolean; liveStatus: string | null; kickoff: Date },
+  now = new Date()
+): boolean {
+  if (m.finished) return false;
+  if (m.liveStatus !== "IN_PLAY" && m.liveStatus !== "PAUSED") return false;
+  return now.getTime() - m.kickoff.getTime() < MAX_LIVE_AGE_MS;
+}
+
 export const dataHoraBR = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
   day: "2-digit",

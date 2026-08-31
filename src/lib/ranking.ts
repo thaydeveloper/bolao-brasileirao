@@ -1,5 +1,5 @@
 import { prisma } from "./db";
-import { firstKickoff, roundStatus, type RoundWithMatches } from "./rounds";
+import { firstKickoff, roundStatus, MAX_LIVE_AGE_MS, type RoundWithMatches } from "./rounds";
 import { calcularPontos } from "./scoring";
 
 export type RankingUser = {
@@ -69,7 +69,7 @@ export async function computeRoundRanking(roundId: number): Promise<RoundRanking
  * placar atual — resultado oficial para jogos encerrados e placar ao vivo para
  * jogos em andamento (IN_PLAY/PAUSED). Muda em tempo real conforme os gols saem.
  */
-export async function computeLiveRanking(roundIds: number[]): Promise<RoundRankingEntry[]> {
+export async function computeLiveRanking(roundIds: number[], now = new Date()): Promise<RoundRankingEntry[]> {
   if (roundIds.length === 0) return [];
   const [players, matches] = await Promise.all([
     getAllPlayers(),
@@ -82,6 +82,7 @@ export async function computeLiveRanking(roundIds: number[]): Promise<RoundRanki
         liveStatus: true,
         liveHome: true,
         liveAway: true,
+        kickoff: true,
         predictions: { select: { userId: true, homeScore: true, awayScore: true, points: true } },
       },
     }),
@@ -103,7 +104,8 @@ export async function computeLiveRanking(roundIds: number[]): Promise<RoundRanki
     } else if (
       (m.liveStatus === "IN_PLAY" || m.liveStatus === "PAUSED") &&
       m.liveHome !== null &&
-      m.liveAway !== null
+      m.liveAway !== null &&
+      now.getTime() - m.kickoff.getTime() < MAX_LIVE_AGE_MS // ignora jogo travado como ao vivo
     ) {
       result = { home: m.liveHome, away: m.liveAway };
     }

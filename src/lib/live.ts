@@ -14,6 +14,7 @@ import {
 import { notify, notifyRoundFinished, checkNewLeader } from "./notifications";
 import { getGeneralLeaders } from "./ranking";
 import { recomputeMatchPoints } from "./results";
+import { MAX_LIVE_AGE_MS } from "./rounds";
 
 // Cota: API-Football grátis = 100 req/dia → cooldown alto. football-data = 10 req/min → baixo.
 const COOLDOWN_APIFOOTBALL_MS = 3 * 60 * 1000;
@@ -54,7 +55,9 @@ export type LiveMatchView = {
 
 /** Partidas atualmente ao vivo (em andamento ou intervalo), para exibição. */
 export async function getLiveMatches(now = new Date()): Promise<LiveMatchView[]> {
-  const since = new Date(now.getTime() - CANDIDATE_WINDOW_MS);
+  // Janela de 3,5h: um jogo que passou disso sem finalizar (API travada) deixa de
+  // ser mostrado como "ao vivo".
+  const since = new Date(now.getTime() - MAX_LIVE_AGE_MS);
   const matches = await prisma.match.findMany({
     where: {
       finished: false,

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { computeRoundRanking, winnersFromRanking } from "@/lib/ranking";
 import CopyButton from "@/components/CopyButton";
-import { dataCompletaBR, isMatchLocked, roundStatus, STATUS_LABEL } from "@/lib/rounds";
+import { dataCompletaBR, isMatchLocked, isMatchLive, roundStatus, STATUS_LABEL } from "@/lib/rounds";
 import PredictionForm from "@/components/PredictionForm";
 import Avatar from "@/components/Avatar";
 import TeamCrest from "@/components/TeamCrest";
@@ -29,11 +29,8 @@ type Liveish = {
   liveStatus: string | null;
   liveHome: number | null;
   liveAway: number | null;
+  kickoff: Date;
 };
-
-function isMatchLive(m: Liveish): boolean {
-  return !m.finished && (m.liveStatus === "IN_PLAY" || m.liveStatus === "PAUSED");
-}
 
 /** Resultado efetivo do jogo: oficial se encerrado, ao vivo se em andamento, senão nulo. */
 function matchResult(m: Liveish): { home: number; away: number } | null {
